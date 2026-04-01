@@ -7,6 +7,7 @@
       --bg-panel:   #242b3d;
       --bg-cours:   #1e2538;
       --accent:     #8ca5b4;
+      --py-editor-input: white;
       --accent-or:  #c9a84c;
       --accent-vert:#4caf50;
       --text-main:  #d4dde4;
@@ -25,6 +26,7 @@
       --bg-cours:   #e8edf5;
       --accent:     #4a6fa5;
       --accent-or:  #a07820;
+      --py-editor-input: white;
       --accent-vert:#2e7d32;
       --text-main:  #1a2030;
       --text-muted: #4a5568;
@@ -374,6 +376,10 @@
       font-family: var(--font-code);
       font-size: 0.88rem;
       overflow: hidden;
+    }
+
+    .py-editor-input{
+        background-color: var(--py-editor-input);
     }
 
     /* ═══════════════════════════════════════════════════════
