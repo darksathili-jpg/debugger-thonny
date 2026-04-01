@@ -49,4 +49,4 @@ Ce fichier HTML est un **TP interactif auto-hébergé** pour enseigner le **déb
 - Libre pour usage éducatif NSI ; citez source.
 - PyScript : MIT ; Bootstrap : MIT. 
 
-**Contact** : darksathi@lycee-watteau.fr pour forks/bugs. Mise à jour : Avril 2026.
+**Contact** : tsautiere@aol.com pour forks/bugs. Mise à jour : Avril 2026.
