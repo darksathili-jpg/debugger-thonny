@@ -20,8 +20,8 @@
   <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css">
   <script type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
 
-  <!-- Feuille de style personnalisée --> 
-  <link rel="stylesheet" href="style.css">
+  <!-- Feuille de style personnalisée -->
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -405,7 +405,6 @@ test_est_majeur()
         </script>
       </div>
 
-      <div id="statut-correction-2" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-2" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-2">
         <div class="encadre-correction">
@@ -774,7 +773,6 @@ test_trouver_maximum()
         </div>
       </div>
 
-      <div id="statut-correction-5" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-5" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-5">
         <div class="encadre-correction">
@@ -975,7 +973,6 @@ test_compter_voyelles()
         </div>
       </div>
 
-      <div id="statut-correction-7" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-7" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-7">
         <div class="encadre-correction">
@@ -1108,7 +1105,6 @@ test_somme_par_groupe()
         </div>
       </div>
 
-      <div id="statut-correction-8" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-8" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-8">
         <div class="encadre-correction">
@@ -1163,7 +1159,6 @@ test_filtrer_pairs()
         </script>
       </div>
 
-      <div id="statut-correction-9" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-9" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-9">
         <div class="encadre-correction">
@@ -1318,7 +1313,6 @@ test_appliquer_sur_liste()
         </div>
       </div>
 
-      <div id="statut-correction-10" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-10" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-10">
         <div class="encadre-correction">
@@ -1379,7 +1373,6 @@ test_score_global()
         </script>
       </div>
 
-      <div id="statut-correction-11" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-11" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-11">
         <div class="encadre-correction">
@@ -1632,7 +1625,6 @@ test_afficher_bilan()
         </div>
       </div>
 
-      <div id="statut-correction-eval" class="statut-tests en-attente"><span class="dot"></span>Lance les tests dans l'éditeur ci-dessus pour débloquer la correction.</div>
       <button id="btn-correction-eval" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
       <div class="bloc-masquable" id="correction-eval">
         <div class="encadre-correction">
@@ -1825,22 +1817,33 @@ function toggleBloc(id) {
    SYSTÈME DE DÉBLOCAGE DES CORRECTIONS
    ─────────────────────────────────────────────────────────
    Deux modes :
-   A) PyScript — détection de "Les tests sont validés."
-      dans la sortie de l'éditeur associé (data-correction="xxx")
-   B) Minuterie — déblocage automatique après 120 secondes
-      pour les exercices sans éditeur (Thonny/papier)
+   A) Mot de passe enseignant — panneau modal pour toutes corrections
+   B) Minuterie 2 min — déblocage auto pour exercices Thonny/papier
+      (le bouton + la minuterie apparaissent ensemble ; la minuterie
+       prend le relais sans mot de passe une fois écoulée)
+   Persistance : localStorage par identifiant de correction
 ───────────────────────────────────────────────────────── */
 (function() {
 
-  var CLE_STORAGE = 'tp-debug-deblocages';
-  var DUREE_MINUTERIE = 120; // secondes
-  var MESSAGE_TESTS   = 'Les tests sont validés.';
+  var CLE_STORAGE   = 'tp-debug-deblocages-v2';
+  var MOT_DE_PASSE  = 'watteau';          // mot de passe enseignant
+  var DUREE_MINUTERIE = 120;              // secondes (exercices Thonny)
+
+  /* ── Corrections liées à un éditeur PyScript ─────────── */
+  var CORRECTIONS_PYSCRIPT  = [
+    'correction-2','correction-5','correction-7','correction-8',
+    'correction-9','correction-10','correction-11','correction-eval'
+  ];
+
+  /* ── Corrections liées à Thonny/papier ──────────────── */
+  var CORRECTIONS_MINUTERIE = [
+    'correction-1','correction-3','correction-4','correction-6'
+  ];
 
   /* ── Persistance localStorage ────────────────────────── */
   function chargerDeblocages() {
-    try {
-      return JSON.parse(localStorage.getItem(CLE_STORAGE) || '{}');
-    } catch(e) { return {}; }
+    try { return JSON.parse(localStorage.getItem(CLE_STORAGE) || '{}'); }
+    catch(e) { return {}; }
   }
 
   function sauvegarderDeblocage(cid) {
@@ -1848,6 +1851,16 @@ function toggleBloc(id) {
       var d = chargerDeblocages();
       d[cid] = true;
       localStorage.setItem(CLE_STORAGE, JSON.stringify(d));
+    } catch(e) {}
+  }
+
+  function sauvegarderTous() {
+    try {
+      var tous = {};
+      CORRECTIONS_PYSCRIPT.concat(CORRECTIONS_MINUTERIE).forEach(function(cid) {
+        tous[cid] = true;
+      });
+      localStorage.setItem(CLE_STORAGE, JSON.stringify(tous));
     } catch(e) {}
   }
 
@@ -1861,141 +1874,156 @@ function toggleBloc(id) {
     toastMsg.textContent = message;
     toastEl.classList.add('visible');
     clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(function() {
-      toastEl.classList.remove('visible');
-    }, 3500);
+    toastTimeout = setTimeout(function() { toastEl.classList.remove('visible'); }, 3500);
   }
 
-  /* ── Débloquer une correction ────────────────────────── */
+  /* ── Activer un bouton correction (sans toast ni persist.) ── */
+  function activerBouton(cid) {
+    var btn = document.getElementById('btn-' + cid);
+    if (!btn || btn.classList.contains('btn-correction-debloque')) return;
+    btn.className  = 'btn-correction-debloque';
+    btn.disabled   = false;
+    btn.innerHTML  = '&#9989; Voir la correction';
+    btn.setAttribute('aria-label', 'Voir la correction');
+    btn.onclick    = function() { toggleBloc(cid); };
+    /* Masquer minuterie si présente */
+    var min = document.getElementById('minuterie-' + cid);
+    if (min) min.style.display = 'none';
+  }
+
+  /* ── Débloquer une correction (avec toast + persist.) ─── */
   function debloquerCorrection(cid, message) {
-    var btnVerrou = document.getElementById('btn-' + cid);
-    if (!btnVerrou) return;
-
-    // Évite le double déblocage
-    if (btnVerrou.classList.contains('btn-correction-debloque')) return;
-
-    // Transformer le bouton verrou en bouton actif
-    btnVerrou.className = 'btn-correction-debloque';
-    btnVerrou.disabled  = false;
-    btnVerrou.innerHTML = '&#9989; Voir la correction';
-    btnVerrou.setAttribute('aria-label', 'Voir la correction');
-    btnVerrou.onclick   = function() { toggleBloc(cid); };
-
-    // Mettre à jour le bandeau statut (exercices PyScript)
-    var statutEl = document.getElementById('statut-' + cid);
-    if (statutEl) {
-      statutEl.classList.add('valide');
-      statutEl.innerHTML =
-        '<span class="dot"></span>Tests validés — correction débloquée !';
-    }
-
-    // Masquer la minuterie si présente
-    var minuterieEl = document.getElementById('minuterie-' + cid);
-    if (minuterieEl) minuterieEl.style.display = 'none';
-
-    // Persister en localStorage
+    activerBouton(cid);
     sauvegarderDeblocage(cid);
-
-    // Toast
     afficherToast(message || 'Correction débloquée !');
   }
 
-  /* ── A) Détection PyScript — MutationObserver sur l'output ─ */
-  function observerEditeur(scriptEl) {
-    var cid = scriptEl.getAttribute('data-correction');
-    if (!cid) return;
+  /* ── Débloquer TOUTES les corrections ───────────────── */
+  function debloquerTout() {
+    var toutes = CORRECTIONS_PYSCRIPT.concat(CORRECTIONS_MINUTERIE);
+    toutes.forEach(function(cid) { activerBouton(cid); });
+    sauvegarderTous();
+    afficherToast('Toutes les corrections sont débloquées.');
+  }
 
-    // L'output PyScript est rendu dans un shadow DOM ou dans un élément
-    // adjacent à l'éditeur. On observe le DOM parent pour détecter l'apparition
-    // d'un élément py-repl ou d'un conteneur output contenant le message attendu.
-    // On utilise un MutationObserver global sur document.body pour surveiller
-    // tout changement de texte dans les outputs PyScript.
+  /* ══════════════════════════════════════════════════════
+     PANNEAU MOT DE PASSE
+  ══════════════════════════════════════════════════════ */
+  var panneauActuel = null;  /* cid ciblé ou 'TOUT' */
 
-    var observerConfig = { childList: true, subtree: true, characterData: true };
+  function creerPanneau(cid) {
+    /* Construit le panneau modal */
+    var estGlobal = (cid === 'TOUT');
+    var label = estGlobal
+      ? 'Débloquer <em>toutes</em> les corrections'
+      : 'Débloquer la correction de l\'exercice <span class="panneau-mdp-cible">' + cid + '</span>';
 
-    function verifierTexteOutput(node) {
-      var texte = node.textContent || '';
-      if (texte.indexOf(MESSAGE_TESTS) !== -1) {
-        // Vérifie que cet output est bien associé au bon éditeur
-        // en recherchant le bloc exercice parent commun
-        var exoParent = trouverExoParent(scriptEl);
-        var outputParent = trouverExoParent(node);
-        if (exoParent && outputParent && exoParent === outputParent) {
-          debloquerCorrection(cid, 'Tests validés — correction débloquée !');
-          return true;
-        }
-      }
-      return false;
+    var div = document.createElement('div');
+    div.className = 'panneau-mdp';
+    div.id        = 'panneau-mdp-overlay';
+    div.setAttribute('role', 'dialog');
+    div.setAttribute('aria-modal', 'true');
+    div.setAttribute('aria-labelledby', 'panneau-mdp-titre');
+    div.innerHTML =
+      '<div class="panneau-mdp-carte">'
+      + '<div class="panneau-mdp-titre" id="panneau-mdp-titre">&#128274; Accès enseignant</div>'
+      + '<div class="panneau-mdp-sous">' + label + '</div>'
+      + '<input type="password" class="panneau-mdp-input" id="panneau-mdp-saisie" '
+      +   'placeholder="Mot de passe enseignant" autocomplete="off" spellcheck="false" />'
+      + '<div class="panneau-mdp-erreur" id="panneau-mdp-erreur" aria-live="polite"></div>'
+      + '<div class="panneau-mdp-actions">'
+      +   '<button class="btn-secondaire" id="panneau-mdp-annuler">Annuler</button>'
+      +   '<button class="btn-tp-or" id="panneau-mdp-valider">Valider</button>'
+      + '</div>'
+      + '</div>';
+
+    return div;
+  }
+
+  function ouvrirPanneau(cid) {
+    if (document.getElementById('panneau-mdp-overlay')) return; /* déjà ouvert */
+    panneauActuel = cid;
+    var panneau = creerPanneau(cid);
+    document.body.appendChild(panneau);
+
+    var input   = document.getElementById('panneau-mdp-saisie');
+    var erreur  = document.getElementById('panneau-mdp-erreur');
+    var btnVal  = document.getElementById('panneau-mdp-valider');
+    var btnAnn  = document.getElementById('panneau-mdp-annuler');
+
+    /* Focus automatique */
+    setTimeout(function() { if (input) input.focus(); }, 80);
+
+    function fermer() {
+      var el = document.getElementById('panneau-mdp-overlay');
+      if (el) el.remove();
+      panneauActuel = null;
     }
 
-    // Observer global — surveille tous les outputs PyScript
-    var observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        // Nouveaux noeuds ajoutés
-        mutation.addedNodes.forEach(function(noeud) {
-          if (noeud.nodeType === 1) { // Element
-            if (verifierTexteOutput(noeud)) return;
-            // Cherche récursivement dans les enfants
-            var descendants = noeud.querySelectorAll ? noeud.querySelectorAll('*') : [];
-            descendants.forEach(function(el) { verifierTexteOutput(el); });
-          }
-        });
-        // Changements de texte
-        if (mutation.type === 'characterData') {
-          verifierTexteOutput(mutation.target.parentElement || mutation.target);
+    function valider() {
+      var saisi = (input.value || '').trim().toLowerCase();
+      if (saisi === MOT_DE_PASSE) {
+        fermer();
+        if (cid === 'TOUT') {
+          debloquerTout();
+        } else {
+          debloquerCorrection(cid, 'Correction débloquée par l\'enseignant.');
         }
-      });
+      } else {
+        erreur.textContent = 'Mot de passe incorrect.';
+        input.classList.add('erreur');
+        input.value = '';
+        setTimeout(function() { input.classList.remove('erreur'); }, 400);
+        setTimeout(function() { if (input) input.focus(); }, 80);
+      }
+    }
+
+    btnVal.addEventListener('click', valider);
+    btnAnn.addEventListener('click', fermer);
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { valider(); }
+      if (e.key === 'Escape') { fermer(); }
+      if (erreur.textContent) erreur.textContent = '';
     });
 
-    observer.observe(document.body, observerConfig);
-
-    // Polling de secours — scanne les outputs toutes les 800ms
-    // car PyScript peut rendre dans un shadow DOM inaccessible à MutationObserver
-    var intervalId = setInterval(function() {
-      var exoParent = trouverExoParent(scriptEl);
-      if (!exoParent) return;
-
-      // Cherche tous les éléments de sortie dans le bloc exercice
-      var outputs = exoParent.querySelectorAll(
-        'py-terminal, .py-terminal, [class*="output"], [class*="terminal"], ' +
-        '[class*="stdout"], pre, code, .cm-line'
-      );
-      outputs.forEach(function(el) {
-        if (el.textContent && el.textContent.indexOf(MESSAGE_TESTS) !== -1) {
-          debloquerCorrection(cid, 'Tests validés — correction débloquée !');
-          clearInterval(intervalId);
-        }
-      });
-
-      // Scan shadow DOM si accessible
-      var shadowHosts = exoParent.querySelectorAll('*');
-      shadowHosts.forEach(function(host) {
-        if (host.shadowRoot) {
-          var shadowOutputs = host.shadowRoot.querySelectorAll('*');
-          shadowOutputs.forEach(function(el) {
-            if (el.textContent && el.textContent.indexOf(MESSAGE_TESTS) !== -1) {
-              debloquerCorrection(cid, 'Tests validés — correction débloquée !');
-              clearInterval(intervalId);
-            }
-          });
-        }
-      });
-
-      // Arrête le polling si déjà débloqué (économie CPU)
-      var btnVerrou = document.getElementById('btn-' + cid);
-      if (btnVerrou && btnVerrou.classList.contains('btn-correction-debloque')) {
-        clearInterval(intervalId);
-      }
-    }, 800);
+    /* Clic sur le fond ferme le panneau */
+    panneau.addEventListener('click', function(e) {
+      if (e.target === panneau) fermer();
+    });
   }
 
-  /* ── Trouver le bloc exercice parent d'un élément ──── */
-  function trouverExoParent(el) {
-    if (!el || !el.closest) return null;
-    return el.closest('.encadre-exercice');
+  /* Attacher le panneau sur tous les boutons verrou */
+  function attacherBoutonsVerrou() {
+    document.querySelectorAll('.btn-correction-verrou').forEach(function(btn) {
+      var id = btn.id; /* "btn-correction-X" */
+      var cid = id.replace('btn-', '');
+      btn.disabled = false;   /* on réactive le clic — le verrou est visuel */
+      btn.addEventListener('click', function() {
+        ouvrirPanneau(cid);
+      });
+    });
   }
 
-  /* ── B) Minuteries pour exercices sans PyScript ──────── */
+  /* ══════════════════════════════════════════════════════
+     BOUTON DÉBLOCAGE GLOBAL (coin nav)
+  ══════════════════════════════════════════════════════ */
+  function ajouterBoutonGlobal() {
+    var nav = document.querySelector('.nav-controls');
+    if (!nav) return;
+    var btn = document.createElement('button');
+    btn.className   = 'btn-deblocage-global';
+    btn.textContent = '&#128275; Enseignant';
+    btn.title       = 'Débloquer toutes les corrections (enseignant)';
+    btn.innerHTML   = '&#128275; Enseignant';
+    btn.addEventListener('click', function() { ouvrirPanneau('TOUT'); });
+    nav.insertBefore(btn, nav.firstChild);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     MINUTERIES — exercices Thonny/papier
+     (toujours actives en parallèle du mot de passe)
+  ══════════════════════════════════════════════════════ */
   function lancerMinuterie(cid) {
     var chronoEl = document.getElementById('chrono-' + cid);
     if (!chronoEl) return;
@@ -2012,59 +2040,38 @@ function toggleBloc(id) {
 
     var intervalId = setInterval(function() {
       restant--;
+      if (restant < 0) { clearInterval(intervalId); return; }
       mettreAJourChrono();
-      if (restant <= 0) {
+      if (restant === 0) {
         clearInterval(intervalId);
-        debloquerCorrection(cid, 'Correction maintenant disponible.');
+        debloquerCorrection(cid, 'Temps écoulé — correction disponible.');
       }
     }, 1000);
   }
 
-  /* ── Initialisation au chargement ───────────────────── */
+  /* ══════════════════════════════════════════════════════
+     INITIALISATION
+  ══════════════════════════════════════════════════════ */
   function init() {
     var deblocages = chargerDeblocages();
 
-    // Restituer les déblocages déjà enregistrés (sans toast)
-    Object.keys(deblocages).forEach(function(cid) {
-      if (deblocages[cid]) {
-        var btnVerrou = document.getElementById('btn-' + cid);
-        if (btnVerrou && !btnVerrou.classList.contains('btn-correction-debloque')) {
-          btnVerrou.className    = 'btn-correction-debloque';
-          btnVerrou.disabled     = false;
-          btnVerrou.innerHTML    = '&#9989; Voir la correction';
-          btnVerrou.onclick      = function() { toggleBloc(cid); };
-          var statutEl = document.getElementById('statut-' + cid);
-          if (statutEl) {
-            statutEl.classList.add('valide');
-            statutEl.innerHTML =
-              '<span class="dot"></span>Tests déjà validés — correction disponible.';
-          }
-          var minuterieEl = document.getElementById('minuterie-' + cid);
-          if (minuterieEl) minuterieEl.style.display = 'none';
-        }
-      }
+    /* Restituer les déblocages persistants (sans toast) */
+    CORRECTIONS_PYSCRIPT.concat(CORRECTIONS_MINUTERIE).forEach(function(cid) {
+      if (deblocages[cid]) activerBouton(cid);
     });
 
-    // Attacher les observateurs sur les éditeurs PyScript
-    document.querySelectorAll('script[type="py-editor"][data-correction]').forEach(function(scriptEl) {
-      var cid = scriptEl.getAttribute('data-correction');
-      if (!deblocages[cid]) {
-        observerEditeur(scriptEl);
-      }
-    });
+    /* Attacher le panneau mot de passe sur les boutons encore verrouillés */
+    attacherBoutonsVerrou();
 
-    // Lancer les minuteries pour les corrections Thonny/papier
-    var correctionsMiniuterie = [
-      'correction-1', 'correction-3', 'correction-4', 'correction-6'
-    ];
-    correctionsMiniuterie.forEach(function(cid) {
-      if (!deblocages[cid]) {
-        lancerMinuterie(cid);
-      }
+    /* Bouton enseignant global dans la nav */
+    ajouterBoutonGlobal();
+
+    /* Lancer les minuteries pour les exercices Thonny */
+    CORRECTIONS_MINUTERIE.forEach(function(cid) {
+      if (!deblocages[cid]) lancerMinuterie(cid);
     });
   }
 
-  // Lancer après chargement du DOM
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
