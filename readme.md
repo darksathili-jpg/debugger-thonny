@@ -14,7 +14,7 @@ Ce fichier HTML est un **TP interactif auto-hébergé** pour enseigner le **déb
 - **Thonny installé** pour les exercices pratiques (séances 3-7). 
 
 ## Installation & Utilisation
-1. Ouvrez `tp_debugger_thonny_nsi.html` dans un navigateur.
+1. Ouvrez `index.html` dans un navigateur.
 2. PyScript s'initialise (~1-2min première fois). 
 3. Suivez les séances via navigation ; éditeurs prêts à coder.
 4. Pour Thonny : copiez codes dans l'IDE, appliquez consignes (breakpoints, variables).
