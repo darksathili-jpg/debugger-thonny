@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TP 01 — Débugger son code Python avec Thonny | NSI Première</title>
+
+  <!-- Bootstrap 5.3.3 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- MathJax v3 -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+
+  <!-- PyScript 2026.3.1 -->
+  <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css">
+  <script type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
+
+  <!-- ════ FALLBACK PyScript ════
+       Si PyScript ne peut pas être chargé (réseau filtré, proxy bloquant, etc.),
+       ce script détecte l'échec et transforme les blocs <script type="py-editor">
+       en blocs <pre> lisibles avec coloration syntaxique Python légère.
+  ════════════════════════════════ -->
+  <script>
+  (function() {
+    /* Durée d'attente avant de considérer PyScript comme indisponible (ms) */
+    var TIMEOUT_PYSCRIPT = 8000;
+
+    /* ── Coloration syntaxique Python minimale ──────────────────────────── */
+    function coloriserPython(code) {
+      /* Échappe d'abord les caractères HTML */
+      var s = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      /* Ordre important : chaînes → commentaires → mots-clés → nombres → fonctions builtin */
+
+      /* Chaînes triple-guillemets */
+      s = s.replace(/("""[\s\S]*?"""|'''[\s\S]*?''')/g,
+        '<span class="py-str">$1</span>');
+      /* Chaînes simples */
+      s = s.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g,
+        function(m) { return m.indexOf('<span') === 0 ? m : '<span class="py-str">' + m + '</span>'; });
+      /* Commentaires */
+      s = s.replace(/(#[^\n]*)/g, '<span class="py-cmt">$1</span>');
+      /* Mots-clés Python */
+      var kws = ['False','None','True','and','as','assert','async','await',
+                 'break','class','continue','def','del','elif','else','except',
+                 'finally','for','from','global','if','import','in','is',
+                 'lambda','nonlocal','not','or','pass','raise','return',
+                 'try','while','with','yield'];
+      var kwRe = new RegExp('\\b(' + kws.join('|') + ')\\b(?![^<]*>)', 'g');
+      s = s.replace(kwRe, '<span class="py-kw">$1</span>');
+      /* Nombres */
+      s = s.replace(/\b(\d+\.?\d*)\b(?![^<]*>)/g, '<span class="py-nb">$1</span>');
+      /* Fonctions builtin courantes */
+      var builtins = ['print','range','len','int','str','float','bool','list',
+                      'dict','set','tuple','input','type','isinstance','enumerate',
+                      'zip','map','filter','sorted','sum','min','max','abs',
+                      'append','lower','upper','format','assert'];
+      var biRe = new RegExp('\\b(' + builtins.join('|') + ')\\b(?=\\s*\\()(?![^<]*>)', 'g');
+      s = s.replace(biRe, '<span class="py-fn">$1</span>');
+
+      return s;
+    }
+
+    /* ── Convertit un <script type="py-editor"> en bloc lisible ─────────── */
+    function convertirEditeurs() {
+      /* Signaler à l'utilisateur que l'exécution n'est pas disponible */
+      var banner = document.createElement('div');
+      banner.id = 'pyscript-indisponible-banner';
+      banner.innerHTML =
+        '<span style="font-size:1.2em;">⚠️</span> ' +
+        '<strong>Éditeur Python non disponible</strong> — ' +
+        'PyScript n\'a pas pu être chargé sur ce poste. ' +
+        'Le code est affiché en lecture seule ; copiez-le dans Thonny pour l\'exécuter.';
+      var main = document.querySelector('main') || document.body;
+      main.insertBefore(banner, main.firstChild);
+
+      /* Trouver tous les scripts py-editor — ils sont dans le DOM mais non parsés */
+      var scripts = document.querySelectorAll('script[type="py-editor"]');
+      scripts.forEach(function(script) {
+        var code = script.textContent || '';
+        /* Supprimer l'indentation commune */
+        var lignes = code.split('\n');
+        /* Retirer la première ligne vide éventuelle */
+        while (lignes.length && lignes[0].trim() === '') lignes.shift();
+        while (lignes.length && lignes[lignes.length-1].trim() === '') lignes.pop();
+        /* Calculer le retrait commun */
+        var minIndent = Infinity;
+        lignes.forEach(function(l) {
+          if (l.trim() === '') return;
+          var m = l.match(/^(\s*)/);
+          if (m) minIndent = Math.min(minIndent, m[1].length);
+        });
+        if (!isFinite(minIndent)) minIndent = 0;
+        var codeNet = lignes.map(function(l) { return l.slice(minIndent); }).join('\n');
+
+        /* Construire le bloc de remplacement */
+        var wrapper = document.createElement('div');
+        wrapper.className = 'py-fallback-bloc';
+
+        var header = document.createElement('div');
+        header.className = 'py-fallback-header';
+        header.innerHTML =
+          '<span class="py-fallback-label">🐍 Code Python — lecture seule (Thonny requis pour exécuter)</span>' +
+          '<button class="py-fallback-copier" title="Copier le code">📋 Copier</button>';
+
+        var pre = document.createElement('pre');
+        pre.className = 'py-fallback-pre';
+        var codeEl = document.createElement('code');
+        codeEl.className = 'py-fallback-code language-python';
+        codeEl.innerHTML = coloriserPython(codeNet);
+        pre.appendChild(codeEl);
+
+        wrapper.appendChild(header);
+        wrapper.appendChild(pre);
+
+        /* Bouton copier */
+        header.querySelector('.py-fallback-copier').addEventListener('click', function() {
+          var btn = this;
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(codeNet).then(function() {
+              btn.textContent = '✅ Copié !';
+              setTimeout(function() { btn.innerHTML = '📋 Copier'; }, 2000);
+            });
+          } else {
+            /* Fallback ancien navigateur */
+            var ta = document.createElement('textarea');
+            ta.value = codeNet;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            btn.textContent = '✅ Copié !';
+            setTimeout(function() { btn.innerHTML = '📋 Copier'; }, 2000);
+          }
+        });
+
+        /* Remplacer le parent .editeur-bloc ou le script lui-même */
+        var parent = script.closest('.editeur-bloc') || script.parentNode;
+        parent.replaceWith ? parent.replaceWith(wrapper) : parent.parentNode.replaceChild(wrapper, parent);
+      });
+
+      /* Masquer le bloc d'init silencieux */
+      var bootstrap = document.getElementById('pyscript-bootstrap');
+      if (bootstrap) bootstrap.style.display = 'none';
+    }
+
+    /* ── Détection : PyScript est-il chargé ? ───────────────────────────── */
+    function pyscriptEstCharge() {
+      /* PyScript expose window.PyScript ou définit des custom elements */
+      return (
+        typeof window.PyScript !== 'undefined' ||
+        typeof customElements.get('py-editor') !== 'undefined' ||
+        document.querySelector('py-repl, .py-editor') !== null
+      );
+    }
+
+    function detecterEchec() {
+      if (!pyscriptEstCharge()) {
+        convertirEditeurs();
+      }
+    }
+
+    /* On attend la fin du chargement de la page, puis on laisse le timeout */
+    window.addEventListener('load', function() {
+      setTimeout(detecterEchec, TIMEOUT_PYSCRIPT);
+    });
+
+    /* Si la page ne charge jamais (réseau coupé), on déclenche plus tôt */
+    setTimeout(function() {
+      if (!pyscriptEstCharge()) {
+        convertirEditeurs();
+      }
+    }, TIMEOUT_PYSCRIPT + 2000);
+
+  })();
+  </script>
+
+  <style>
+  /* ════ Styles du fallback PyScript ════ */
+  #pyscript-indisponible-banner {
+    background: var(--accent, #f0a500);
+    color: #1a1a1a;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .py-fallback-bloc {
+    border: 2px solid var(--accent, #f0a500);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0.5rem 0 1rem;
+    background: var(--bg-code, #1e1e2e);
+  }
+
+  .py-fallback-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.9rem;
+    background: color-mix(in srgb, var(--accent, #f0a500) 15%, transparent);
+    border-bottom: 1px solid var(--accent, #f0a500);
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .py-fallback-label {
+    font-size: 0.82rem;
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0.9;
+    color: var(--text-main, #e0e0e0);
+  }
+
+  .py-fallback-copier {
+    font-size: 0.78rem;
+    padding: 0.2rem 0.7rem;
+    border: 1px solid var(--accent, #f0a500);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--accent, #f0a500);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+  }
+
+  .py-fallback-copier:hover {
+    background: var(--accent, #f0a500);
+    color: #1a1a1a;
+  }
+
+  .py-fallback-pre {
+    margin: 0;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    background: transparent;
+    color: var(--text-main, #cdd6f4);
+  }
+
+  .py-fallback-code {
+    display: block;
+    white-space: pre;
+  }
+
+  /* Coloration syntaxique Python */
+  .py-fallback-code .py-kw  { color: #cba6f7; font-weight: 600; }  /* violet — mots-clés */
+  .py-fallback-code .py-str { color: #a6e3a1; }                     /* vert — chaînes */
+  .py-fallback-code .py-cmt { color: #6c7086; font-style: italic; } /* gris — commentaires */
+  .py-fallback-code .py-nb  { color: #fab387; }                     /* orange — nombres */
+  .py-fallback-code .py-fn  { color: #89b4fa; }                     /* bleu — fonctions */
+
+  /* Adaptation thème clair */
+  [data-theme="light"] .py-fallback-pre { color: #333; }
+  [data-theme="light"] .py-fallback-bloc { background: #f8f8f2; }
+  [data-theme="light"] .py-fallback-code .py-kw  { color: #7c3aed; }
+  [data-theme="light"] .py-fallback-code .py-str { color: #16a34a; }
+  [data-theme="light"] .py-fallback-code .py-cmt { color: #6b7280; }
+  [data-theme="light"] .py-fallback-code .py-nb  { color: #ea580c; }
+  [data-theme="light"] .py-fallback-code .py-fn  { color: #2563eb; }
+  </style>
+
+  <!-- Feuille de style personnalisée -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     INITIALISATION PYSCRIPT — élément statique obligatoire
+     pour forcer le chargement de Pyodide dès le parse HTML
+════════════════════════════════════════════════════════ -->
+<div id="pyscript-bootstrap" style="display:none;" aria-hidden="true">
+  <script type="py-editor" env="tp-debug">
+# Initialisation silencieuse de l'environnement PyScript
+pass
+  </script>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     NAVIGATION STICKY
+════════════════════════════════════════════════════════ -->
+<nav class="nav-principale" role="navigation" aria-label="Navigation principale">
+  <span class="nav-titre">TP 01 — Débugger avec Thonny</span>
+  <div class="nav-seances" role="menubar" aria-label="Séances">
+    <a href="#seance1" role="menuitem">S1 — Types</a>
+    <a href="#seance2" role="menuitem">S2 — Thonny</a>
+    <a href="#seance3" role="menuitem">S3 — Pas-à-pas</a>
+    <a href="#seance4" role="menuitem">S4 — Breakpoints</a>
+    <a href="#seance5" role="menuitem">S5 — Boucles</a>
+    <a href="#seance6" role="menuitem">S6 — Fonctions</a>
+    <a href="#seance7" role="menuitem">S7 — Méthode</a>
+  </div>
+  <div class="nav-controls">
+    <button class="btn-theme" id="btn-theme" aria-label="Basculer thème clair/sombre">☀ Clair</button>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════════ -->
+<header class="hero" role="banner">
+  <div class="hero-badge">NSI · Première · TP 01</div>
+  <h1>Débugger son code Python</h1>
+  <p class="hero-sous-titre">Comment trouver et corriger ses erreurs avec Thonny</p>
+  <div class="hero-meta">
+    <span>&#128197; 7 séances · 7 heures</span>
+    <span>&#128300; Python 3 · Thonny</span>
+    <span>&#127891; Lycée Antoine Watteau</span>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════
+     CONTENEUR PRINCIPAL
+════════════════════════════════════════════════════════ -->
+<main class="conteneur-principal" id="contenu-principal">
+
+  <!-- ┌─────────────────────────────────────────────────┐
+       │  INTRODUCTION                                   │
+       └─────────────────────────────────────────────────┘ -->
+  <section class="seance" id="intro">
+    <div class="seance-header">
+      <span class="seance-numero">Introduction</span>
+      <h2>Bienvenue dans ce TP</h2>
+    </div>
+
+    <p>
+      Imagine la scène : tu viens de terminer d'écrire ton programme, tu appuies sur
+      « Exécuter »… et rien ne se passe comme prévu. Ou pire — le programme s'arrête
+      en plein milieu avec un message en rouge que tu ne comprends pas.
+    </p>
+
+    <p>
+      Est-ce que ça t'est déjà arrivé ? C'est exactement ce que vit
+      <em>tout</em> développeur, du débutant au professionnel. La différence, c'est
+      que le professionnel sait <strong>quoi chercher</strong> et
+      <strong>comment chercher</strong>. C'est précisément ce que tu vas apprendre
+      dans ce TP.
+    </p>
+
+    <div class="encadre-conseil">
+      <span class="encadre-prefix">&#128161; Ce que tu vas apprendre</span>
+      <p>Au fil des sept séances, tu vas construire une méthode solide et réutilisable pour :</p>
+      <ul>
+        <li>lire un message d'erreur et en comprendre le sens ;</li>
+        <li>suivre ton programme instruction par instruction pour voir ce qui se passe réellement ;</li>
+        <li>observer l'état de tes variables à n'importe quel instant ;</li>
+        <li>isoler la zone fautive sans avoir à tout relire ;</li>
+        <li>corriger proprement et vérifier que la correction ne casse rien d'autre.</li>
+      </ul>
+    </div>
+
+    <p>
+      On commence doucement : pas de logiciel à installer, pas de notion
+      compliquée. Juste toi, quelques scripts Python courts,
+      et des questions auxquelles tu vas répondre par toi-même.
+    </p>
+
+    <div class="progress-seances" role="list" aria-label="Progression du TP">
+      <div class="progress-item s1" role="listitem">
+        <div>S1</div><div class="progress-dot"></div>
+      </div>
+      <div class="progress-item s2" role="listitem">
+        <div>S2</div><div class="progress-dot"></div>
+      </div>
+      <div class="progress-item s3" role="listitem">
+        <div>S3</div><div class="progress-dot"></div>
+      </div>
+      <div class="progress-item s4" role="listitem">
+        <div>S4</div><div class="progress-dot"></div>
+      </div>
+      <div class="progress-item s5" role="listitem">
+        <div>S5</div><div class="progress-dot"></div>
+      </div>
+      <div class="progress-item s6" role="listitem">
+        <div>S6</div><div class="progress-dot"></div>
+      </div>
+      <div class="progress-item s7" role="listitem">
+        <div>S7</div><div class="progress-dot"></div>
+      </div>
+    </div>
+
+    <table class="tableau-seances" aria-label="Vue d'ensemble du TP">
+      <thead>
+        <tr>
+          <th>Séance</th>
+          <th>Durée</th>
+          <th>Compétence principale</th>
+          <th>Production attendue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>1 h</td><td>Identifier les types d'erreurs</td><td>Fiche de diagnostics</td></tr>
+        <tr><td>2</td><td>1 h</td><td>Prendre en main le débogueur</td><td>Prise en main guidée</td></tr>
+        <tr><td>3</td><td>1 h</td><td>Suivre l'état des variables</td><td>Tableau de trace</td></tr>
+        <tr><td>4</td><td>1 h</td><td>Suspendre l'exécution au bon endroit</td><td>Correction d'un script</td></tr>
+        <tr><td>5</td><td>1 h</td><td>Déboguer boucles et conditions</td><td>Exercices corrigés</td></tr>
+        <tr><td>6</td><td>1 h</td><td>Déboguer les fonctions</td><td>Script à fonctions</td></tr>
+        <tr><td>7</td><td>1 h</td><td>Autonomie méthodologique</td><td>Mini-évaluation pratique</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       SÉANCE 1 — Comprendre les bugs
+  ══════════════════════════════════════════════════════ -->
+  <section class="seance" id="seance1">
+    <div class="seance-header">
+      <span class="seance-numero">Séance 1</span>
+      <h2>Comprendre les bugs</h2>
+      <span class="seance-duree">1 heure</span>
+    </div>
+
+    <!-- COURS -->
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — Trois familles d'erreurs</span>
+
+      <p>
+        Quand un programme ne fonctionne pas, il existe exactement trois situations
+        possibles. Les distinguer, c'est déjà à moitié résoudre le problème.
+      </p>
+
+      <h4>Situation 1 — Python refuse même de démarrer</h4>
+      <p>
+        Tu cliques sur « Exécuter » et Python s'arrête
+        <em>avant même d'avoir fait quoi que ce soit</em>. Il affiche un message
+        du type <code>SyntaxError</code>. Pourquoi ? Parce que ton code ressemble
+        à une phrase avec une faute de grammaire tellement grave que Python ne peut
+        pas l'interpréter.
+      </p>
+      <p>
+        Exemples courants : une parenthèse oubliée, un guillemet non fermé, une
+        indentation incorrecte.
+      </p>
+      <p><span class="badge-type badge-syntaxe">Erreur de syntaxe</span> — le programme ne démarre pas.</p>
+
+      <h4>Situation 2 — Python démarre, puis s'effondre</h4>
+      <p>
+        Cette fois le programme se lance, mais à un moment précis il bloque avec
+        un message d'erreur. Python a rencontré quelque chose d'impossible à
+        faire, par exemple diviser par zéro ou accéder à un indice qui n'existe
+        pas dans une liste.
+      </p>
+      <p><span class="badge-type badge-execution">Erreur d'exécution</span> — le programme démarre mais s'arrête en cours de route.</p>
+
+      <h4>Situation 3 — Le programme tourne mais le résultat est faux</h4>
+      <p>
+        La situation la plus sournoise. Le programme s'exécute sans aucun
+        message d'erreur, mais la réponse affichée est incorrecte. Il y a une
+        erreur dans la <em>logique</em> : une condition mal formulée, une
+        variable mal initialisée, une boucle qui tourne une fois de trop…
+      </p>
+      <p><span class="badge-type badge-logique">Erreur logique</span> — le programme termine, mais le résultat est faux.</p>
+    </div>
+
+    <!-- COURS — Lire un message d'erreur -->
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — Lire un message d'erreur Python</span>
+
+      <p>
+        Un message d'erreur Python n'est pas un insulte : c'est une
+        <strong>piste de correction</strong>. Il suit toujours la même structure.
+        Regarde cet exemple :
+      </p>
+
+      <pre class="bloc-code-static"><span class="err">Traceback (most recent call last):
+  File "jeu.py", line 7, in &lt;module&gt;
+    resultat = score / nb_parties
+ZeroDivisionError: division by zero</span></pre>
+
+      <p>Décode-le ligne par ligne :</p>
+      <ol>
+        <li><strong>Traceback</strong> — c'est la « trace » du chemin parcouru avant le crash.</li>
+        <li><strong>File "jeu.py", line 7</strong> — le problème est à la ligne 7 du fichier <code>jeu.py</code>.</li>
+        <li><strong>resultat = score / nb_parties</strong> — voilà l'instruction exacte qui a causé l'erreur.</li>
+        <li><strong>ZeroDivisionError: division by zero</strong> — la cause : on a divisé par zéro.</li>
+      </ol>
+
+      <div class="encadre-conseil" style="margin-top:1rem;">
+        <span class="encadre-prefix">&#128161; Réflexe à adopter</span>
+        <p style="margin:0;">
+          Lis <em>toujours</em> la dernière ligne en premier : elle te dit
+          <strong>quoi</strong> s'est passé. Puis remonte pour savoir
+          <strong>où</strong>.
+        </p>
+      </div>
+    </div>
+
+    <!-- EXERCICE 1 -->
+    <div class="encadre-exercice" id="exo1">
+      <span class="encadre-prefix">&#9998; Exercice 1 — Diagnostiquer trois scripts</span>
+
+      <p>
+        Voici trois scripts Python volontairement cassés. Pour chacun, tu dois
+        répondre à deux questions <em>avant</em> d'exécuter quoi que ce soit :
+      </p>
+      <ol class="liste-exercice">
+        <li>De quel type d'erreur s'agit-il (syntaxe, exécution, ou logique) ?</li>
+        <li>Quelle ligne est responsable du problème ?</li>
+      </ol>
+
+      <h4 style="margin-top:1rem; color: var(--accent);">Script A</h4>
+      <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">carre</span>(n):
+    <span class="kw">return</span> n * n
+
+resultat = carre(<span class="nb">5</span>
+<span class="fn">print</span>(resultat)</pre>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-1a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-1a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">Compte les parenthèses à la ligne 4. Est-ce qu'elles s'équilibrent ?</p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-1b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-1b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            Il manque une parenthèse fermante à la ligne <code>resultat = carre(5</code>.
+            Python attend la fin de l'appel et ne peut donc pas analyser la suite.
+            C'est une erreur de <strong>syntaxe</strong>.
+          </p>
+        </div>
+      </div>
+
+      <h4 style="margin-top:1.5rem; color: var(--accent);">Script B</h4>
+      <pre class="bloc-code-static">notes = [<span class="nb">14</span>, <span class="nb">12</span>, <span class="nb">17</span>]
+<span class="fn">print</span>(<span class="st">"Quatrième note :"</span>, notes[<span class="nb">3</span>])</pre>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-2a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-2a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">Combien d'éléments la liste <code>notes</code> contient-elle ? Quel est le dernier indice valide ?</p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-2b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-2b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            La liste a 3 éléments, donc les indices valides sont 0, 1 et 2.
+            L'indice 3 n'existe pas. Python lèvera une <code>IndexError</code>
+            à l'exécution — c'est une erreur d'<strong>exécution</strong>.
+          </p>
+        </div>
+      </div>
+
+      <h4 style="margin-top:1.5rem; color: var(--accent);">Script C</h4>
+      <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">est_majeur</span>(age):
+    <span class="kw">if</span> age > <span class="nb">18</span>:
+        <span class="kw">return</span> <span class="kw">True</span>
+    <span class="kw">return</span> <span class="kw">False</span>
+
+<span class="fn">print</span>(est_majeur(<span class="nb">18</span>))  <span class="cm"># doit afficher True</span></pre>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-3a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-3a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">Le programme s'exécute sans erreur. Quel résultat affiche-t-il réellement pour <code>age = 18</code> ?</p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-3b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-3b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            Le commentaire dit « doit afficher <code>True</code> », mais la condition
+            est <code>age &gt; 18</code>, donc 18 strict ne passe pas. Il faudrait
+            écrire <code>age &gt;= 18</code>. Le programme s'exécute correctement
+            mais donne un mauvais résultat : c'est une erreur de <strong>logique</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div class="minuterie-deblocage" id="minuterie-correction-1"><span>&#9201;</span>Correction disponible dans <span class="compte-a-rebours" id="chrono-correction-1">2:00</span></div>
+      <button id="btn-correction-1" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-1">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 1</span>
+          <table class="tableau-trace" aria-label="Types d'erreurs dans l'exercice 1">
+            <thead>
+              <tr>
+                <th>Script</th>
+                <th>Type</th>
+                <th>Ligne</th>
+                <th>Explication</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A</td>
+                <td><span class="badge-type badge-syntaxe">Syntaxe</span></td>
+                <td>4</td>
+                <td>Parenthèse fermante manquante dans <code>carre(5</code></td>
+              </tr>
+              <tr>
+                <td>B</td>
+                <td><span class="badge-type badge-execution">Exécution</span></td>
+                <td>2</td>
+                <td><code>IndexError</code> — indice 3 hors de la liste de taille 3</td>
+              </tr>
+              <tr>
+                <td>C</td>
+                <td><span class="badge-type badge-logique">Logique</span></td>
+                <td>2</td>
+                <td><code>&gt;</code> strict au lieu de <code>&gt;=</code>, donc 18 ans renvoie <code>False</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXERCICE 2 — PyScript -->
+    <div class="encadre-exercice" id="exo2">
+      <span class="encadre-prefix">&#9998; Exercice 2 — Corriger les bugs en ligne</span>
+
+      <p>
+        Voici la fonction <code>est_majeur</code> avec l'erreur logique du Script C.
+        Corrige-la pour qu'une personne de 18 ans exactement soit reconnue comme majeure.
+        Les tests doivent passer.
+      </p>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-2">
+def est_majeur(age):
+    # BUGUÉ : corrige la condition pour que 18 ans soit majeur
+    if age > 18:
+        return True
+    return False
+
+def test_est_majeur():
+    assert est_majeur(17) == False, "17 ans doit retourner False"
+    assert est_majeur(18) == True,  "18 ans doit retourner True"
+    assert est_majeur(25) == True,  "25 ans doit retourner True"
+    print("Les tests sont validés.")
+
+test_est_majeur()
+        </script>
+      </div>
+
+      <button id="btn-correction-2" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-2">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 2</span>
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">est_majeur</span>(age):
+    <span class="kw">if</span> age >= <span class="nb">18</span>:   <span class="cm"># >= au lieu de ></span>
+        <span class="kw">return</span> <span class="kw">True</span>
+    <span class="kw">return</span> <span class="kw">False</span>
+
+<span class="kw">def</span> <span class="fn">test_est_majeur</span>():
+    <span class="kw">assert</span> est_majeur(<span class="nb">17</span>) == <span class="kw">False</span>
+    <span class="kw">assert</span> est_majeur(<span class="nb">18</span>) == <span class="kw">True</span>
+    <span class="kw">assert</span> est_majeur(<span class="nb">25</span>) == <span class="kw">True</span>
+    <span class="fn">print</span>(<span class="st">"Les tests sont validés."</span>)
+
+test_est_majeur()</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       SÉANCE 2 — Prendre en main Thonny
+  ══════════════════════════════════════════════════════ -->
+  <section class="seance" id="seance2">
+    <div class="seance-header">
+      <span class="seance-numero">Séance 2</span>
+      <h2>Prendre en main Thonny</h2>
+      <span class="seance-duree">1 heure</span>
+    </div>
+
+    <p>
+      Tu sais maintenant <em>reconnaître</em> un bug. Il est temps d'apprendre
+      à le <em>traquer</em> avec un outil conçu exactement pour ça.
+    </p>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — L'interface de débogage de Thonny</span>
+
+      <p>
+        Thonny est un environnement Python pensé pour l'apprentissage. Son point
+        fort : un <strong>mode débogage</strong> qui te permet d'exécuter ton
+        programme une instruction à la fois, comme un film qu'on peut mettre
+        en pause à chaque image.
+      </p>
+
+      <h4>Les éléments essentiels de l'interface</h4>
+
+      <table class="tableau-trace" aria-label="Éléments interface Thonny">
+        <thead>
+          <tr>
+            <th>Zone</th>
+            <th>Rôle</th>
+            <th>Raccourci</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Bouton Débogage</td>
+            <td>Lance le programme en mode pas à pas</td>
+            <td>Ctrl + F5</td>
+          </tr>
+          <tr>
+            <td>Step over</td>
+            <td>Exécute l'instruction en cours sans entrer dans les fonctions</td>
+            <td>F6</td>
+          </tr>
+          <tr>
+            <td>Step into</td>
+            <td>Entre à l'intérieur d'une fonction appelée</td>
+            <td>F7</td>
+          </tr>
+          <tr>
+            <td>Panneau Variables</td>
+            <td>Affiche la valeur de toutes les variables à l'instant T</td>
+            <td>Menu View</td>
+          </tr>
+          <tr>
+            <td>Panneau Stack</td>
+            <td>Affiche la pile d'appels de fonctions en cours</td>
+            <td>Menu View</td>
+          </tr>
+          <tr>
+            <td>Surlignage bleu</td>
+            <td>Indique la prochaine instruction qui sera exécutée</td>
+            <td>Automatique</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="encadre-conseil" style="margin-top:1rem;">
+        <span class="encadre-prefix">&#128161; Conseil pratique</span>
+        <p style="margin:0;">
+          Active les panneaux « Variables » et « Stack » dès le début via le menu
+          <code>View</code>. Sans eux, le débogage ressemble à conduire les yeux bandés.
+        </p>
+      </div>
+    </div>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — Deux modes de débogage</span>
+
+      <p>
+        Thonny propose deux variantes du mode débogage, selon la situation :
+      </p>
+
+      <h4>Mode Nicer (recommandé pour débuter)</h4>
+      <p>
+        Thonny décompose chaque expression en sous-expressions et les met en
+        évidence une à une. C'est comme si on décortiquait le calcul
+        <code>2 + 3 * 4</code> en montrant d'abord <code>3 * 4 = 12</code>,
+        puis <code>2 + 12 = 14</code>. Très visuel, légèrement plus lent.
+      </p>
+
+      <h4>Mode Faster (pour programmes plus longs)</h4>
+      <p>
+        Thonny avance instruction par instruction, sans décomposer les expressions.
+        Plus rapide, mais moins détaillé. À utiliser quand tu as déjà une idée
+        de la zone à inspecter.
+      </p>
+    </div>
+
+    <!-- EXERCICE 3 — Prise en main -->
+    <div class="encadre-exercice" id="exo3">
+      <span class="encadre-prefix">&#9998; Exercice 3 — Première session de débogage guidée</span>
+
+      <p>
+        Lance Thonny sur ta machine et suis ces étapes dans l'ordre.
+        Copie d'abord le code ci-dessous dans un nouveau fichier Thonny.
+      </p>
+
+      <pre class="bloc-code-static"><span class="cm"># Calcul du prix total d'une commande</span>
+quantite = <span class="nb">5</span>
+prix_unitaire = <span class="nb">12</span>
+remise = <span class="nb">0.1</span>
+
+prix_brut = quantite * prix_unitaire
+prix_net = prix_brut - prix_brut * remise
+<span class="fn">print</span>(<span class="st">"Prix à payer :"</span>, prix_net, <span class="st">"€"</span>)</pre>
+
+      <ol class="liste-exercice">
+        <li>
+          Lance le programme normalement (F5). Quel résultat s'affiche ?
+          Est-ce le résultat correct pour 5 articles à 12 € avec 10 % de remise ?
+        </li>
+        <li>
+          Active le panneau « Variables » (menu <code>View → Variables</code>).
+        </li>
+        <li>
+          Lance maintenant le débogueur (Ctrl + F5, mode Nicer).
+          Appuie sur F6 plusieurs fois et observe : dans quel ordre les variables
+          apparaissent-elles dans le panneau ?
+        </li>
+        <li>
+          Note dans le tableau ci-dessous les valeurs affichées après chaque appui sur F6.
+        </li>
+      </ol>
+
+      <table class="tableau-trace" style="margin-top:1rem;" aria-label="Tableau de suivi variables exercice 3">
+        <thead>
+          <tr>
+            <th>Étape (F6)</th>
+            <th>Variable modifiée</th>
+            <th>Nouvelle valeur</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>quantite</td><td>…</td></tr>
+          <tr><td>2</td><td>prix_unitaire</td><td>…</td></tr>
+          <tr><td>3</td><td>remise</td><td>…</td></tr>
+          <tr><td>4</td><td>prix_brut</td><td>…</td></tr>
+          <tr><td>5</td><td>prix_net</td><td>…</td></tr>
+          <tr><td>6</td><td>(print)</td><td>Affichage</td></tr>
+        </tbody>
+      </table>
+
+      <div class="minuterie-deblocage" id="minuterie-correction-3"><span>&#9201;</span>Correction disponible dans <span class="compte-a-rebours" id="chrono-correction-3">2:00</span></div>
+      <button id="btn-correction-3" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-3">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Réponses attendues — Exercice 3</span>
+          <table class="tableau-trace" aria-label="Réponses exercice 3">
+            <thead>
+              <tr><th>Variable</th><th>Valeur attendue</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>quantite</td><td>5</td></tr>
+              <tr><td>prix_unitaire</td><td>12</td></tr>
+              <tr><td>remise</td><td>0.1</td></tr>
+              <tr><td>prix_brut</td><td>60</td></tr>
+              <tr><td>prix_net</td><td>54.0</td></tr>
+              <tr><td>Affichage</td><td>Prix à payer : 54.0 €</td></tr>
+            </tbody>
+          </table>
+          <p style="margin-top:0.75rem;">
+            54 € est bien la réponse correcte : 5 × 12 = 60 €, moins 10 % = 54 €.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       SÉANCE 3 — Pas-à-pas et état mémoire
+  ══════════════════════════════════════════════════════ -->
+  <section class="seance" id="seance3">
+    <div class="seance-header">
+      <span class="seance-numero">Séance 3</span>
+      <h2>Pas-à-pas et état mémoire</h2>
+      <span class="seance-duree">1 heure</span>
+    </div>
+
+    <p>
+      Un programme n'est pas une boîte noire qui produit un résultat magique.
+      C'est une <em>suite d'états</em> : à chaque instruction, la mémoire change.
+      Savoir lire ces états, c'est comprendre ce que le programme fait vraiment,
+      pas ce qu'on croit qu'il fait.
+    </p>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — Tracer l'exécution à la main</span>
+
+      <p>
+        Avant même d'ouvrir Thonny, il est très utile de savoir prévoir le
+        comportement d'un programme sur papier. Cette technique s'appelle
+        la <strong>trace d'exécution</strong>.
+      </p>
+
+      <p>
+        On crée un tableau avec une colonne par variable, et une ligne par
+        instruction importante. À chaque ligne, on note la nouvelle valeur
+        de la variable qui vient d'être modifiée. Si une variable ne change pas,
+        on laisse sa cellule vide (ou on recopie la valeur précédente).
+      </p>
+
+      <h4>Exemple — Calcul de la somme des nombres de 1 à 5</h4>
+      <pre class="bloc-code-static">somme = <span class="nb">0</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">6</span>):
+    somme = somme + i
+<span class="fn">print</span>(somme)</pre>
+
+      <table class="tableau-trace" style="margin-top:1rem;" aria-label="Trace d'exécution exemple somme">
+        <thead>
+          <tr><th>Ligne</th><th>i</th><th>somme</th><th>Commentaire</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>—</td><td>0</td><td>Initialisation</td></tr>
+          <tr><td>3 (i=1)</td><td>1</td><td>1</td><td>0 + 1</td></tr>
+          <tr><td>3 (i=2)</td><td>2</td><td>3</td><td>1 + 2</td></tr>
+          <tr><td>3 (i=3)</td><td>3</td><td>6</td><td>3 + 3</td></tr>
+          <tr><td>3 (i=4)</td><td>4</td><td>10</td><td>6 + 4</td></tr>
+          <tr><td>3 (i=5)</td><td>5</td><td>15</td><td>10 + 5</td></tr>
+          <tr><td>4</td><td>—</td><td>15</td><td>Affichage : 15</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- EXERCICE 4 -->
+    <div class="encadre-exercice" id="exo4">
+      <span class="encadre-prefix">&#9998; Exercice 4 — Tracer à la main, vérifier avec Thonny</span>
+
+      <p>
+        Voici un programme qui calcule le produit des éléments d'une liste.
+        Complète d'abord le tableau de trace <em>sur papier</em>, sans exécuter
+        le code. Ensuite, vérifie ta trace avec Thonny en mode débogage.
+      </p>
+
+      <pre class="bloc-code-static">valeurs = [<span class="nb">2</span>, <span class="nb">3</span>, <span class="nb">5</span>]
+produit = <span class="nb">1</span>
+<span class="kw">for</span> v <span class="kw">in</span> valeurs:
+    produit = produit * v
+<span class="fn">print</span>(<span class="st">"Produit :"</span>, produit)</pre>
+
+      <p><strong>Tableau de trace à compléter :</strong></p>
+      <table class="tableau-trace" aria-label="Tableau trace exercice 4">
+        <thead>
+          <tr><th>Tour de boucle</th><th>v</th><th>produit avant</th><th>produit après</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Initial</td><td>—</td><td>—</td><td>?</td></tr>
+          <tr><td>1</td><td>?</td><td>?</td><td>?</td></tr>
+          <tr><td>2</td><td>?</td><td>?</td><td>?</td></tr>
+          <tr><td>3</td><td>?</td><td>?</td><td>?</td></tr>
+        </tbody>
+      </table>
+
+      <ol class="liste-exercice" style="margin-top:1rem;">
+        <li>Quelle valeur est affichée à la fin ? Préds-la avant d'exécuter.</li>
+        <li>Lance le débogueur Thonny sur ce code et compare ta trace avec le panneau Variables.</li>
+        <li>À quel moment exact la valeur de <code>produit</code> change-t-elle ?</li>
+      </ol>
+
+      <div class="minuterie-deblocage" id="minuterie-correction-4"><span>&#9201;</span>Correction disponible dans <span class="compte-a-rebours" id="chrono-correction-4">2:00</span></div>
+      <button id="btn-correction-4" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-4">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 4</span>
+          <table class="tableau-trace" aria-label="Correction exercice 4">
+            <thead>
+              <tr><th>Tour</th><th>v</th><th>produit avant</th><th>produit après</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Initial</td><td>—</td><td>—</td><td>1</td></tr>
+              <tr><td>1</td><td>2</td><td>1</td><td>2</td></tr>
+              <tr><td>2</td><td>3</td><td>2</td><td>6</td></tr>
+              <tr><td>3</td><td>5</td><td>6</td><td>30</td></tr>
+            </tbody>
+          </table>
+          <p style="margin-top:0.75rem;">Le programme affiche : <code>Produit : 30</code> — soit 2 × 3 × 5 = 30.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXERCICE 5 — PyScript -->
+    <div class="encadre-exercice" id="exo5">
+      <span class="encadre-prefix">&#9998; Exercice 5 — Repérer le moment où ça diverge</span>
+
+      <p>
+        La fonction ci-dessous est censée calculer le maximum d'une liste.
+        Elle contient un bug logique : à un moment précis de son exécution,
+        la valeur de <code>maximum</code> n'est plus celle attendue.
+      </p>
+      <p>
+        Trouve le bug, corrige-le, et fais passer les tests.
+      </p>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-5">
+def trouver_maximum(liste):
+    maximum = 0   # BUG : que se passe-t-il si tous les éléments sont négatifs ?
+    for valeur in liste:
+        if valeur > maximum:
+            maximum = valeur
+    return maximum
+
+def test_trouver_maximum():
+    assert trouver_maximum([3, 7, 2, 9, 1]) == 9
+    assert trouver_maximum([-5, -2, -8])    == -2
+    assert trouver_maximum([0, 0, 1])       == 1
+    print("Les tests sont validés.")
+
+test_trouver_maximum()
+        </script>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-5a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-5a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">
+            Que vaut <code>maximum</code> au départ ? Que se passe-t-il si
+            tous les éléments de la liste sont inférieurs à cette valeur initiale ?
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-5b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-5b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            Initialise <code>maximum</code> avec le premier élément de la liste :
+            <code>maximum = liste[0]</code>. Ainsi, quelle que soit la liste, le
+            maximum de départ est un élément réel de cette liste.
+          </p>
+        </div>
+      </div>
+
+      <button id="btn-correction-5" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-5">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 5</span>
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">trouver_maximum</span>(liste):
+    maximum = liste[<span class="nb">0</span>]   <span class="cm"># on part du premier élément</span>
+    <span class="kw">for</span> valeur <span class="kw">in</span> liste:
+        <span class="kw">if</span> valeur > maximum:
+            maximum = valeur
+    <span class="kw">return</span> maximum
+
+<span class="kw">def</span> <span class="fn">test_trouver_maximum</span>():
+    <span class="kw">assert</span> trouver_maximum([<span class="nb">3</span>, <span class="nb">7</span>, <span class="nb">2</span>, <span class="nb">9</span>, <span class="nb">1</span>]) == <span class="nb">9</span>
+    <span class="kw">assert</span> trouver_maximum([<span class="nb">-5</span>, <span class="nb">-2</span>, <span class="nb">-8</span>])    == <span class="nb">-2</span>
+    <span class="kw">assert</span> trouver_maximum([<span class="nb">0</span>, <span class="nb">0</span>, <span class="nb">1</span>])       == <span class="nb">1</span>
+    <span class="fn">print</span>(<span class="st">"Les tests sont validés."</span>)
+
+test_trouver_maximum()</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       SÉANCE 4 — Les points d'arrêt
+  ══════════════════════════════════════════════════════ -->
+  <section class="seance" id="seance4">
+    <div class="seance-header">
+      <span class="seance-numero">Séance 4</span>
+      <h2>Les points d'arrêt</h2>
+      <span class="seance-duree">1 heure</span>
+    </div>
+
+    <p>
+      Avancer instruction par instruction sur un programme de 200 lignes,
+      c'est épuisant. Il doit exister une façon plus intelligente de travailler.
+      Et il y en a une.
+    </p>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — Les points d'arrêt (breakpoints)</span>
+
+      <p>
+        Imagine que tu saches que ton bug se situe quelque part autour de la
+        ligne 80. Devoir appuyer 79 fois sur F6 pour y arriver est absurde.
+        Un <strong>point d'arrêt</strong> résout ce problème : tu marques la
+        ligne 80, tu lances le débogueur, et le programme s'arrête automatiquement
+        juste avant d'exécuter cette ligne. Tu inspectes alors les variables
+        directement dans leur état à cet instant précis.
+      </p>
+
+      <h4>Placer un point d'arrêt dans Thonny</h4>
+      <ol>
+        <li>Clique dans la marge grise à gauche du numéro de ligne — un point rouge apparaît.</li>
+        <li>Lance le débogueur normalement (Ctrl + F5).</li>
+        <li>Le programme s'exécute à vitesse normale jusqu'au point d'arrêt, puis se met en pause.</li>
+        <li>Inspecte le panneau Variables. Continue avec F6 si nécessaire.</li>
+        <li>Pour supprimer un point d'arrêt, clique à nouveau sur le point rouge.</li>
+      </ol>
+
+      <div class="encadre-conseil" style="margin-top:1rem;">
+        <span class="encadre-prefix">&#128161; Stratégie de placement</span>
+        <p style="margin:0;">
+          Place ton premier point d'arrêt au milieu du code, pas au début. Si
+          les variables sont correctes à la moitié, le bug est dans la seconde
+          moitié. Sinon, il est dans la première. Tu as divisé le problème en deux
+          — c'est une <em>recherche dichotomique</em> appliquée au débogage !
+        </p>
+      </div>
+    </div>
+
+    <!-- EXERCICE 6 -->
+    <div class="encadre-exercice" id="exo6">
+      <span class="encadre-prefix">&#9998; Exercice 6 — Identifier la ligne d'un breakpoint optimal</span>
+
+      <p>
+        Le programme suivant est censé afficher la liste des multiples de 3
+        inférieurs à 20. Il affiche en réalité <code>[3, 6, 9, 12, 15, 18, 21]</code>
+        — un élément de trop. Réponds aux questions sans modifier le code.
+      </p>
+
+      <pre class="bloc-code-static">multiples = []
+i = <span class="nb">3</span>
+<span class="kw">while</span> i <= <span class="nb">20</span>:
+    multiples.append(i)
+    i = i + <span class="nb">3</span>
+<span class="fn">print</span>(multiples)</pre>
+
+      <ol class="liste-exercice">
+        <li>À quelle ligne placerais-tu un point d'arrêt pour surveiller l'état de <code>multiples</code> à chaque tour de boucle ?</li>
+        <li>Quelle est la valeur de <code>i</code> au moment où l'élément 21 est ajouté à la liste ?</li>
+        <li>Quelle correction faut-il apporter à la condition du <code>while</code> ?</li>
+      </ol>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-6a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-6a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">
+            Place le breakpoint à la ligne 4 (<code>multiples.append(i)</code>).
+            Chaque fois que le programme s'y arrête, observe la valeur de <code>i</code>.
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-6b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-6b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            Quand <code>i = 21</code>, la condition <code>21 &lt;= 20</code> est fausse…
+            mais non : le programme entre quand même dans la boucle parce que la vérification
+            se fait <em>avant</em> d'incrémenter <code>i</code>. La condition correcte
+            est <code>i &lt; 20</code>.
+          </p>
+        </div>
+      </div>
+
+      <div class="minuterie-deblocage" id="minuterie-correction-6"><span>&#9201;</span>Correction disponible dans <span class="compte-a-rebours" id="chrono-correction-6">2:00</span></div>
+      <button id="btn-correction-6" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-6">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 6</span>
+          <p>
+            La condition <code>while i &lt;= 20</code> laisse entrer la valeur <code>21</code>
+            car au dernier tour, <code>i</code> vaut 18, on ajoute 18, puis <code>i</code>
+            passe à 21 — mais 21 ≤ 20 est <strong>faux</strong>.
+          </p>
+          <p>
+            Attends — relis la trace : après avoir ajouté 18, <code>i</code> devient 21.
+            La condition <code>21 &lt;= 20</code> est fausse, donc la boucle s'arrête.
+            L'erreur est différente : la condition est <code>i &lt;= 20</code>, donc 21 n'est
+            pas ajouté. La liste affichée <code>[3,6,9,12,15,18,21]</code> indiquerait
+            que la condition devrait être <code>i &lt; 20</code> (strict) pour exclure 21.
+          </p>
+          <p>Correction :</p>
+          <pre class="bloc-code-static">multiples = []
+i = <span class="nb">3</span>
+<span class="kw">while</span> i < <span class="nb">20</span>:   <span class="cm"># < strict pour exclure 21</span>
+    multiples.append(i)
+    i = i + <span class="nb">3</span>
+<span class="fn">print</span>(multiples)  <span class="cm"># [3, 6, 9, 12, 15, 18]</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXERCICE 7 — PyScript avec breakpoint simulé -->
+    <div class="encadre-exercice" id="exo7">
+      <span class="encadre-prefix">&#9998; Exercice 7 — Corriger avec la stratégie du breakpoint</span>
+
+      <p>
+        La fonction <code>compter_voyelles</code> est censée renvoyer le nombre
+        de voyelles dans un mot. Elle contient un bug. Utilise la stratégie du
+        breakpoint (ou les <code>print</code> de diagnostic) pour identifier
+        à quelle itération le compteur diverge, puis corrige.
+      </p>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-7">
+def compter_voyelles(mot):
+    voyelles = "aeiouy"
+    compteur = 0
+    for lettre in mot:
+        if lettre in voyelles:    # BUG : la casse n'est pas gérée
+            compteur = compteur + 1
+    return compteur
+
+def test_compter_voyelles():
+    assert compter_voyelles("bonjour")  == 3
+    assert compter_voyelles("Python")   == 1
+    assert compter_voyelles("OISEAU")   == 5
+    print("Les tests sont validés.")
+
+test_compter_voyelles()
+        </script>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-7a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-7a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">
+            Quel test échoue en premier ? Que remarques-tu sur les lettres du mot dans ce test ?
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-7b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-7b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            Le test <code>compter_voyelles("OISEAU")</code> échoue car les lettres
+            sont majuscules. La chaîne <code>voyelles</code> ne contient que des
+            minuscules. Solution : convertir <code>lettre</code> en minuscule avant
+            le test, avec <code>lettre.lower()</code>.
+          </p>
+        </div>
+      </div>
+
+      <button id="btn-correction-7" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-7">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 7</span>
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">compter_voyelles</span>(mot):
+    voyelles = <span class="st">"aeiouy"</span>
+    compteur = <span class="nb">0</span>
+    <span class="kw">for</span> lettre <span class="kw">in</span> mot:
+        <span class="kw">if</span> lettre.lower() <span class="kw">in</span> voyelles:  <span class="cm"># .lower() gère majuscules</span>
+            compteur = compteur + <span class="nb">1</span>
+    <span class="kw">return</span> compteur
+
+<span class="kw">def</span> <span class="fn">test_compter_voyelles</span>():
+    <span class="kw">assert</span> compter_voyelles(<span class="st">"bonjour"</span>)  == <span class="nb">3</span>
+    <span class="kw">assert</span> compter_voyelles(<span class="st">"Python"</span>)   == <span class="nb">1</span>
+    <span class="kw">assert</span> compter_voyelles(<span class="st">"OISEAU"</span>)   == <span class="nb">5</span>
+    <span class="fn">print</span>(<span class="st">"Les tests sont validés."</span>)
+
+test_compter_voyelles()</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       SÉANCE 5 — Déboguer les structures de contrôle
+  ══════════════════════════════════════════════════════ -->
+  <section class="seance" id="seance5">
+    <div class="seance-header">
+      <span class="seance-numero">Séance 5</span>
+      <h2>Déboguer les boucles et les conditions</h2>
+      <span class="seance-duree">1 heure</span>
+    </div>
+
+    <p>
+      Tu maîtrises maintenant les outils. Il est temps d'affronter les bugs
+      les plus fréquents en programmation Python : ceux qui se cachent dans
+      les boucles et les conditions.
+    </p>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — Les pièges classiques</span>
+
+      <h4>Piège 1 — La boucle infinie</h4>
+      <p>
+        Une boucle <code>while</code> tourne indéfiniment si la condition de
+        sortie n'est jamais atteinte. Cause habituelle : la variable de contrôle
+        n'est jamais modifiée à l'intérieur de la boucle.
+      </p>
+      <pre class="bloc-code-static"><span class="cm"># Boucle infinie — ne jamais exécuter !</span>
+compteur = <span class="nb">0</span>
+<span class="kw">while</span> compteur < <span class="nb">10</span>:
+    <span class="fn">print</span>(compteur)
+    <span class="cm"># oubli : compteur = compteur + 1</span></pre>
+
+      <h4 style="margin-top:1.2rem;">Piège 2 — La variable non réinitialisée</h4>
+      <p>
+        Quand une même variable sert d'accumulateur pour plusieurs calculs successifs,
+        il faut la remettre à zéro entre chaque calcul. Sinon, les résultats
+        se « contaminent » mutuellement.
+      </p>
+
+      <h4 style="margin-top:1.2rem;">Piège 3 — L'erreur « off-by-one »</h4>
+      <p>
+        Une boucle itère une fois de trop ou une fois de moins.
+        Cause classique : confusion entre <code>&lt;</code> et <code>&lt;=</code>,
+        ou entre <code>range(n)</code> (0 à n-1) et <code>range(1, n+1)</code> (1 à n).
+      </p>
+
+      <h4 style="margin-top:1.2rem;">Piège 4 — La condition toujours vraie ou toujours fausse</h4>
+      <p>
+        Un <code>if</code> dont la condition est logiquement incohérente (par exemple
+        tester un entier avec <code>==</code> alors que la valeur est un flottant)
+        ne s'exécutera jamais, ou s'exécutera toujours.
+      </p>
+    </div>
+
+    <!-- EXERCICE 8 -->
+    <div class="encadre-exercice" id="exo8">
+      <span class="encadre-prefix">&#9998; Exercice 8 — Boucle et variable mal réinitialisée</span>
+
+      <p>
+        La fonction <code>somme_par_groupe</code> doit calculer la somme des
+        entiers dans chaque sous-liste. Elle renvoie des valeurs incorrectes
+        à partir du deuxième groupe.
+      </p>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-8">
+def somme_par_groupe(groupes):
+    resultats = []
+    total = 0   # BUG : la réinitialisation est mal placée
+    for groupe in groupes:
+        for valeur in groupe:
+            total = total + valeur
+        resultats.append(total)
+    return resultats
+
+def test_somme_par_groupe():
+    groupes = [[1, 2, 3], [4, 5], [10]]
+    assert somme_par_groupe(groupes) == [6, 9, 10]
+    assert somme_par_groupe([[0], [0, 0]]) == [0, 0]
+    assert somme_par_groupe([[7, 3], [2]]) == [10, 2]
+    print("Les tests sont validés.")
+
+test_somme_par_groupe()
+        </script>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-8a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-8a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">
+            Trace l'exécution à la main avec <code>groupes = [[1,2,3],[4,5]]</code>.
+            Quelle est la valeur de <code>total</code> au début du deuxième groupe ?
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-8b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-8b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            Il faut déplacer <code>total = 0</code> à l'intérieur de la boucle
+            externe, juste avant la boucle interne, pour repartir de zéro à
+            chaque nouveau groupe.
+          </p>
+        </div>
+      </div>
+
+      <button id="btn-correction-8" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-8">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 8</span>
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">somme_par_groupe</span>(groupes):
+    resultats = []
+    <span class="kw">for</span> groupe <span class="kw">in</span> groupes:
+        total = <span class="nb">0</span>   <span class="cm"># réinitialisation à chaque groupe</span>
+        <span class="kw">for</span> valeur <span class="kw">in</span> groupe:
+            total = total + valeur
+        resultats.append(total)
+    <span class="kw">return</span> resultats
+
+<span class="kw">def</span> <span class="fn">test_somme_par_groupe</span>():
+    groupes = [[<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>], [<span class="nb">4</span>, <span class="nb">5</span>], [<span class="nb">10</span>]]
+    <span class="kw">assert</span> somme_par_groupe(groupes) == [<span class="nb">6</span>, <span class="nb">9</span>, <span class="nb">10</span>]
+    <span class="kw">assert</span> somme_par_groupe([[<span class="nb">0</span>], [<span class="nb">0</span>, <span class="nb">0</span>]]) == [<span class="nb">0</span>, <span class="nb">0</span>]
+    <span class="kw">assert</span> somme_par_groupe([[<span class="nb">7</span>, <span class="nb">3</span>], [<span class="nb">2</span>]]) == [<span class="nb">10</span>, <span class="nb">2</span>]
+    <span class="fn">print</span>(<span class="st">"Les tests sont validés."</span>)
+
+test_somme_par_groupe()</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXERCICE 9 -->
+    <div class="encadre-exercice" id="exo9">
+      <span class="encadre-prefix">&#9998; Exercice 9 — Condition mal formulée</span>
+
+      <p>
+        La fonction <code>filtrer_pairs</code> doit renvoyer une liste contenant
+        uniquement les nombres pairs de la liste donnée. Elle contient une erreur
+        dans sa condition.
+      </p>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-9">
+def filtrer_pairs(nombres):
+    resultat = []
+    for n in nombres:
+        if n % 2 == 1:   # BUG : quelle valeur indique qu'un nombre est pair ?
+            resultat.append(n)
+    return resultat
+
+def test_filtrer_pairs():
+    assert filtrer_pairs([1, 2, 3, 4, 5, 6]) == [2, 4, 6]
+    assert filtrer_pairs([7, 8, 9])           == [8]
+    assert filtrer_pairs([0, 1])              == [0]
+    print("Les tests sont validés.")
+
+test_filtrer_pairs()
+        </script>
+      </div>
+
+      <button id="btn-correction-9" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-9">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 9</span>
+          <p>Un nombre est pair si son reste par 2 est <strong>0</strong>, pas 1.</p>
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">filtrer_pairs</span>(nombres):
+    resultat = []
+    <span class="kw">for</span> n <span class="kw">in</span> nombres:
+        <span class="kw">if</span> n % <span class="nb">2</span> == <span class="nb">0</span>:   <span class="cm"># 0 = pair</span>
+            resultat.append(n)
+    <span class="kw">return</span> resultat
+
+<span class="kw">def</span> <span class="fn">test_filtrer_pairs</span>():
+    <span class="kw">assert</span> filtrer_pairs([<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>, <span class="nb">4</span>, <span class="nb">5</span>, <span class="nb">6</span>]) == [<span class="nb">2</span>, <span class="nb">4</span>, <span class="nb">6</span>]
+    <span class="kw">assert</span> filtrer_pairs([<span class="nb">7</span>, <span class="nb">8</span>, <span class="nb">9</span>])           == [<span class="nb">8</span>]
+    <span class="kw">assert</span> filtrer_pairs([<span class="nb">0</span>, <span class="nb">1</span>])              == [<span class="nb">0</span>]
+    <span class="fn">print</span>(<span class="st">"Les tests sont validés."</span>)
+
+test_filtrer_pairs()</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       SÉANCE 6 — Déboguer les fonctions
+  ══════════════════════════════════════════════════════ -->
+  <section class="seance" id="seance6">
+    <div class="seance-header">
+      <span class="seance-numero">Séance 6</span>
+      <h2>Déboguer les fonctions</h2>
+      <span class="seance-duree">1 heure</span>
+    </div>
+
+    <p>
+      Tu sais traquer un bug dans un script linéaire. Mais dès qu'une fonction
+      est appelée, quelque chose change : le programme « entre » dans un nouveau
+      contexte, avec ses propres variables. C'est là qu'intervient la
+      <strong>pile d'appels</strong>.
+    </p>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — La pile d'appels (call stack)</span>
+
+      <p>
+        Quand Python appelle une fonction, il met le programme principal
+        « en pause » et crée un nouvel espace de variables pour la fonction.
+        Quand la fonction termine, Python revient à l'endroit exact où il s'était
+        arrêté. C'est comme empiler des cartes : on pose une nouvelle carte à chaque
+        appel, on l'enlève quand la fonction renvoie son résultat.
+      </p>
+
+      <p>
+        Le panneau <code>Stack</code> de Thonny affiche cet empilement en temps
+        réel. Chaque ligne représente un <strong>cadre d'appel</strong>. Le cadre
+        du haut est la fonction en cours d'exécution. Le cadre du bas est le
+        programme principal.
+      </p>
+
+      <h4>Variables locales vs variables globales</h4>
+      <p>
+        Une variable définie à l'intérieur d'une fonction n'existe que le temps
+        de l'exécution de cette fonction. Elle disparaît dès que la fonction se
+        termine. C'est une <strong>variable locale</strong>. Les variables définies
+        hors de toute fonction sont des <strong>variables globales</strong>.
+      </p>
+
+      <div class="encadre-conseil" style="margin-top:1rem;">
+        <span class="encadre-prefix">&#128161; Erreur classique</span>
+        <p style="margin:0;">
+          Modifier une variable globale à l'intérieur d'une fonction sans
+          déclarer <code>global</code> ne fonctionne pas comme attendu en Python.
+          La bonne pratique : passer les données en paramètres et les récupérer
+          via <code>return</code>.
+        </p>
+      </div>
+    </div>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — Step into vs Step over</span>
+
+      <p>
+        Quand le débogueur arrive sur un appel de fonction, tu as le choix :
+      </p>
+      <ul>
+        <li>
+          <strong>F6 — Step over :</strong> Thonny exécute la fonction entière d'un coup
+          et passe à la ligne suivante. Utile quand tu fais confiance à la fonction.
+        </li>
+        <li>
+          <strong>F7 — Step into :</strong> Thonny entre à l'intérieur de la fonction,
+          ligne par ligne. Le panneau Stack change pour montrer le cadre de la fonction.
+          Utilise-le quand tu suspectes que le bug est dans la fonction.
+        </li>
+      </ul>
+    </div>
+
+    <!-- EXERCICE 10 -->
+    <div class="encadre-exercice" id="exo10">
+      <span class="encadre-prefix">&#9998; Exercice 10 — Une fonction qui marche seule mais pas dans le programme</span>
+
+      <p>
+        Ce type de situation est très courant : on teste une fonction isolément
+        et elle semble fonctionner, mais quand on l'intègre dans un programme
+        plus grand, le résultat est faux. Trouve pourquoi.
+      </p>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-10">
+def doubler(n):
+    return n * 2
+
+def appliquer_sur_liste(valeurs):
+    resultats = []
+    for v in valeurs:
+        # BUG : la valeur renvoyée par doubler() n'est pas utilisée
+        doubler(v)
+        resultats.append(v)
+    return resultats
+
+def test_appliquer_sur_liste():
+    assert appliquer_sur_liste([1, 2, 3]) == [2, 4, 6]
+    assert appliquer_sur_liste([0, 5])    == [0, 10]
+    assert appliquer_sur_liste([7])       == [14]
+    print("Les tests sont validés.")
+
+test_appliquer_sur_liste()
+        </script>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-10a')">&#128270; Indice niveau 1</button>
+      <div class="bloc-masquable" id="indice-10a">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 1</span>
+          <p style="margin:0;">
+            La fonction <code>doubler(v)</code> renvoie bien le double de <code>v</code>.
+            Mais est-ce que ce résultat est <em>utilisé</em> quelque part ?
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-secondaire" onclick="toggleBloc('indice-10b')">&#128270; Indice niveau 2</button>
+      <div class="bloc-masquable" id="indice-10b">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Indice 2</span>
+          <p style="margin:0;">
+            Appeler <code>doubler(v)</code> sans récupérer le résultat, c'est
+            comme commander un café et laisser le barista le poser sur le comptoir
+            sans jamais le prendre. Il faut écrire
+            <code>resultat = doubler(v)</code> puis <code>resultats.append(resultat)</code>.
+          </p>
+        </div>
+      </div>
+
+      <button id="btn-correction-10" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-10">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 10</span>
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">doubler</span>(n):
+    <span class="kw">return</span> n * <span class="nb">2</span>
+
+<span class="kw">def</span> <span class="fn">appliquer_sur_liste</span>(valeurs):
+    resultats = []
+    <span class="kw">for</span> v <span class="kw">in</span> valeurs:
+        resultats.append(doubler(v))   <span class="cm"># on utilise le retour</span>
+    <span class="kw">return</span> resultats
+
+<span class="kw">def</span> <span class="fn">test_appliquer_sur_liste</span>():
+    <span class="kw">assert</span> appliquer_sur_liste([<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>]) == [<span class="nb">2</span>, <span class="nb">4</span>, <span class="nb">6</span>]
+    <span class="kw">assert</span> appliquer_sur_liste([<span class="nb">0</span>, <span class="nb">5</span>])    == [<span class="nb">0</span>, <span class="nb">10</span>]
+    <span class="kw">assert</span> appliquer_sur_liste([<span class="nb">7</span>])       == [<span class="nb">14</span>]
+    <span class="fn">print</span>(<span class="st">"Les tests sont validés."</span>)
+
+test_appliquer_sur_liste()</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXERCICE 11 — Variables locales/globales -->
+    <div class="encadre-exercice" id="exo11">
+      <span class="encadre-prefix">&#9998; Exercice 11 — Variable locale vs variable globale</span>
+
+      <p>
+        Ce programme est censé augmenter un score global. Il ne fonctionne pas.
+        Identifie pourquoi, puis propose deux solutions : l'une avec <code>global</code>,
+        l'autre sans (avec <code>return</code>).
+      </p>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-11">
+score = 0
+
+def ajouter_points(points):
+    # BUG : score ici est une variable locale, pas la variable globale
+    score = score + points
+
+ajouter_points(10)
+ajouter_points(5)
+
+def test_score_global():
+    # Solution recommandée : passer score en paramètre et utiliser return
+    def ajouter_pts(score_actuel, points):
+        return score_actuel + points
+
+    s = 0
+    s = ajouter_pts(s, 10)
+    s = ajouter_pts(s, 5)
+    assert s == 15, f"attendu 15, obtenu {s}"
+    print("Les tests sont validés.")
+
+test_score_global()
+        </script>
+      </div>
+
+      <button id="btn-correction-11" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-11">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Exercice 11</span>
+
+          <p><strong>Pourquoi ça plante ?</strong></p>
+          <p>
+            En Python, quand tu écris <code>score = score + points</code> dans
+            une fonction, Python voit que <code>score</code> est assigné dans la
+            fonction et le considère automatiquement comme une variable
+            <em>locale</em>. Mais il essaie de lire <code>score</code> avant de
+            l'assigner (pour faire l'addition), ce qui produit une
+            <code>UnboundLocalError</code>.
+          </p>
+
+          <p><strong>Solution 1 — avec <code>global</code> (déconseillée en général) :</strong></p>
+          <pre class="bloc-code-static">score = <span class="nb">0</span>
+
+<span class="kw">def</span> <span class="fn">ajouter_points</span>(points):
+    <span class="kw">global</span> score       <span class="cm"># déclare qu'on utilise la variable globale</span>
+    score = score + points
+
+ajouter_points(<span class="nb">10</span>)
+ajouter_points(<span class="nb">5</span>)
+<span class="fn">print</span>(score)  <span class="cm"># 15</span></pre>
+
+          <p><strong>Solution 2 — avec <code>return</code> (recommandée) :</strong></p>
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">ajouter_points</span>(score_actuel, points):
+    <span class="kw">return</span> score_actuel + points
+
+score = <span class="nb">0</span>
+score = ajouter_points(score, <span class="nb">10</span>)
+score = ajouter_points(score, <span class="nb">5</span>)
+<span class="fn">print</span>(score)  <span class="cm"># 15</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       SÉANCE 7 — Méthode experte de débogage
+  ══════════════════════════════════════════════════════ -->
+  <section class="seance" id="seance7">
+    <div class="seance-header">
+      <span class="seance-numero">Séance 7</span>
+      <h2>Méthode experte de débogage</h2>
+      <span class="seance-duree">1 heure · Évaluation</span>
+    </div>
+
+    <p>
+      Tu as maintenant tous les outils. Il reste à les assembler en une méthode
+      cohérente, reproductible, et applicable à n'importe quel programme NSI.
+      C'est ce que font les développeurs professionnels.
+    </p>
+
+    <div class="encadre">
+      <span class="encadre-prefix">&#128218; Cours — La méthode en 7 étapes</span>
+
+      <ol class="methode-etapes">
+        <li>
+          <div>
+            <strong>Décrire le résultat attendu.</strong>
+            Avant même de chercher le bug, formule clairement ce que le programme
+            <em>devrait</em> produire. « La fonction doit renvoyer 42 pour l'entrée 7. »
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>Reproduire le bug de façon fiable.</strong>
+            Identifie quelle entrée déclenche le problème. Un bug qu'on ne peut
+            pas reproduire ne peut pas être corrigé.
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>Lire le message d'erreur ou observer l'anomalie.</strong>
+            Lis la dernière ligne du message en premier : c'est le type d'erreur.
+            Remonte pour trouver la ligne concernée.
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>Placer un point d'arrêt au bon endroit.</strong>
+            Commence au milieu de la zone suspecte. Si les variables sont correctes
+            à ce point, le bug est plus loin.
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>Suivre les variables pas à pas.</strong>
+            Avance avec F6 ou F7 et observe chaque changement de valeur.
+            Cherche le moment exact où une valeur diverge de ce qui était attendu.
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>Corriger une seule chose à la fois.</strong>
+            Ne modifie qu'une seule ligne avant de re-tester. Si tu corriges
+            plusieurs choses à la fois, tu ne sais plus ce qui a résolu le problème.
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>Rejouer le test complet.</strong>
+            Après correction, relance tous les tests — y compris ceux qui passaient
+            déjà. Une correction peut en casser une autre.
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- MINI-ÉVALUATION PRATIQUE -->
+    <div class="encadre-exercice" id="eval-finale">
+      <span class="encadre-prefix">&#127919; Mini-évaluation pratique — Programme complet à déboguer</span>
+
+      <p>
+        Ce programme contient <strong>quatre bugs distincts</strong> : une variable
+        mal initialisée, une condition fausse, un retour manquant dans une fonction,
+        et une erreur d'indice. Tu dois les trouver <strong>uniquement avec Thonny</strong>,
+        sans deviner, en appliquant la méthode en 7 étapes.
+      </p>
+
+      <div class="encadre-conseil">
+        <span class="encadre-prefix">&#128221; Consigne d'évaluation</span>
+        <p>
+          Pour chaque bug trouvé, note dans ton cahier :
+        </p>
+        <ol>
+          <li>La ligne où tu as placé ton premier point d'arrêt et pourquoi ce choix.</li>
+          <li>Ce que tu as observé dans le panneau Variables à cet endroit.</li>
+          <li>La correction apportée.</li>
+        </ol>
+      </div>
+
+      <div class="editeur-bloc">
+        <script type="py-editor" env="tp-debug" data-correction="correction-eval">
+# Programme : calcul de statistiques sur une liste de scores de jeu
+# Bugs à trouver et corriger pour que les tests passent.
+
+def calculer_moyenne(scores):
+    # BUG 1 : mauvaise valeur initiale pour l'accumulateur
+    total = 1
+    for s in scores:
+        total = total + s
+    return total / len(scores)
+
+def trouver_meilleur(scores):
+    # BUG 2 : condition mal formulée (cherche le minimum au lieu du maximum)
+    meilleur = scores[0]
+    for s in scores:
+        if s < meilleur:
+            meilleur = s
+    return meilleur
+
+def compter_au_dessus(scores, seuil):
+    compteur = 0
+    for s in scores:
+        if s > seuil:
+            compteur = compteur + 1
+    # BUG 3 : la fonction ne renvoie rien
+
+def afficher_bilan(scores):
+    # BUG 4 : mauvais indice pour le dernier élément
+    dernier = scores[len(scores)]
+    print("Dernier score :", dernier)
+    print("Moyenne       :", calculer_moyenne(scores))
+    print("Meilleur      :", trouver_meilleur(scores))
+    print("Au-dessus de 10 :", compter_au_dessus(scores, 10))
+
+# Fonctions de test
+def test_calculer_moyenne():
+    assert calculer_moyenne([10, 20, 30]) == 20.0
+    assert calculer_moyenne([0, 0, 0])   == 0.0
+    assert calculer_moyenne([5, 15])     == 10.0
+    print("test_calculer_moyenne : Les tests sont validés.")
+
+def test_trouver_meilleur():
+    assert trouver_meilleur([3, 9, 1, 7]) == 9
+    assert trouver_meilleur([5])          == 5
+    assert trouver_meilleur([2, 2, 2])    == 2
+    print("test_trouver_meilleur : Les tests sont validés.")
+
+def test_compter_au_dessus():
+    assert compter_au_dessus([5, 12, 8, 15], 10) == 2
+    assert compter_au_dessus([1, 2, 3], 10)      == 0
+    assert compter_au_dessus([11, 12, 13], 10)   == 3
+    print("test_compter_au_dessus : Les tests sont validés.")
+
+def test_afficher_bilan():
+    # On teste seulement que la fonction ne plante pas avec une liste valide
+    scores = [8, 14, 6, 11]
+    try:
+        afficher_bilan(scores)
+        print("test_afficher_bilan : Les tests sont validés.")
+    except Exception as e:
+        print("ERREUR dans afficher_bilan :", e)
+
+# Lance les tests un par un
+test_calculer_moyenne()
+test_trouver_meilleur()
+test_compter_au_dessus()
+test_afficher_bilan()
+        </script>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-eval-1')">&#128270; Aide — Bug 1</button>
+      <div class="bloc-masquable" id="indice-eval-1">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Bug 1</span>
+          <p style="margin:0;">
+            Place un breakpoint sur la ligne <code>return total / len(scores)</code>
+            et appelle <code>calculer_moyenne([10, 20, 30])</code>. Quelle valeur
+            a <code>total</code> avant la division ? Elle devrait valoir 60, pas 61.
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-eval-2')">&#128270; Aide — Bug 2</button>
+      <div class="bloc-masquable" id="indice-eval-2">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Bug 2</span>
+          <p style="margin:0;">
+            La condition est <code>s &lt; meilleur</code> — elle cherche un élément
+            <em>plus petit</em>. Pour trouver le maximum, il faut <code>s &gt; meilleur</code>.
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-eval-3')">&#128270; Aide — Bug 3</button>
+      <div class="bloc-masquable" id="indice-eval-3">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Bug 3</span>
+          <p style="margin:0;">
+            La fonction <code>compter_au_dessus</code> n'a pas de <code>return</code>.
+            Elle renvoie implicitement <code>None</code>. Ajoute <code>return compteur</code>
+            à la fin.
+          </p>
+        </div>
+      </div>
+
+      <button class="btn-tp" onclick="toggleBloc('indice-eval-4')">&#128270; Aide — Bug 4</button>
+      <div class="bloc-masquable" id="indice-eval-4">
+        <div class="encadre-indice">
+          <span class="encadre-prefix">&#128270; Bug 4</span>
+          <p style="margin:0;">
+            Le dernier indice valide d'une liste de longueur <code>n</code> est
+            <code>n - 1</code>, pas <code>n</code>. Corrige en
+            <code>scores[len(scores) - 1]</code> ou <code>scores[-1]</code>.
+          </p>
+        </div>
+      </div>
+
+      <button id="btn-correction-eval" class="btn-correction-verrou" disabled aria-label="Correction verrouillée">&#128274; Correction verrouillée</button>
+      <div class="bloc-masquable" id="correction-eval">
+        <div class="encadre-correction">
+          <span class="encadre-prefix">&#9989; Correction — Mini-évaluation</span>
+
+          <table class="tableau-trace" style="margin-bottom:1rem;" aria-label="Récapitulatif des 4 bugs">
+            <thead>
+              <tr><th>#</th><th>Fonction</th><th>Bug</th><th>Correction</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>calculer_moyenne</td>
+                <td><code>total = 1</code> au lieu de <code>0</code></td>
+                <td><code>total = 0</code></td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>trouver_meilleur</td>
+                <td><code>s &lt; meilleur</code> cherche le minimum</td>
+                <td><code>s &gt; meilleur</code></td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>compter_au_dessus</td>
+                <td>Absence de <code>return</code></td>
+                <td>Ajouter <code>return compteur</code></td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>afficher_bilan</td>
+                <td><code>scores[len(scores)]</code> — indice hors bornes</td>
+                <td><code>scores[-1]</code> ou <code>scores[len(scores)-1]</code></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <pre class="bloc-code-static"><span class="kw">def</span> <span class="fn">calculer_moyenne</span>(scores):
+    total = <span class="nb">0</span>              <span class="cm"># correction 1</span>
+    <span class="kw">for</span> s <span class="kw">in</span> scores:
+        total = total + s
+    <span class="kw">return</span> total / <span class="fn">len</span>(scores)
+
+<span class="kw">def</span> <span class="fn">trouver_meilleur</span>(scores):
+    meilleur = scores[<span class="nb">0</span>]
+    <span class="kw">for</span> s <span class="kw">in</span> scores:
+        <span class="kw">if</span> s > meilleur:    <span class="cm"># correction 2</span>
+            meilleur = s
+    <span class="kw">return</span> meilleur
+
+<span class="kw">def</span> <span class="fn">compter_au_dessus</span>(scores, seuil):
+    compteur = <span class="nb">0</span>
+    <span class="kw">for</span> s <span class="kw">in</span> scores:
+        <span class="kw">if</span> s > seuil:
+            compteur = compteur + <span class="nb">1</span>
+    <span class="kw">return</span> compteur          <span class="cm"># correction 3</span>
+
+<span class="kw">def</span> <span class="fn">afficher_bilan</span>(scores):
+    dernier = scores[-<span class="nb">1</span>]      <span class="cm"># correction 4</span>
+    <span class="fn">print</span>(<span class="st">"Dernier score :"</span>, dernier)
+    <span class="fn">print</span>(<span class="st">"Moyenne       :"</span>, calculer_moyenne(scores))
+    <span class="fn">print</span>(<span class="st">"Meilleur      :"</span>, trouver_meilleur(scores))
+    <span class="fn">print</span>(<span class="st">"Au-dessus de 10 :"</span>, compter_au_dessus(scores, <span class="nb">10</span>))</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRITÈRES DE MAÎTRISE -->
+    <div class="encadre-conseil" id="criteres">
+      <span class="encadre-prefix">&#127919; Critères de maîtrise</span>
+
+      <p>Tu peux te considérer à l'aise en débogage si tu sais :</p>
+      <ul>
+        <li>interpréter un message d'erreur Python sans aide immédiate ;</li>
+        <li>localiser une anomalie avec un point d'arrêt ;</li>
+        <li>expliquer l'évolution d'au moins deux variables pendant l'exécution ;</li>
+        <li>corriger un bug simple puis vérifier que la correction n'en crée pas un autre ;</li>
+        <li>verbaliser ta démarche de débogage de façon claire et reproductible.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<!-- ════════════════════════════════════════════════════════
+     PIED DE PAGE
+════════════════════════════════════════════════════════ -->
+<footer class="pied-page" role="contentinfo">
+  <strong>Lycée Antoine Watteau</strong> — DarkSATHI Li &nbsp;·&nbsp;
+  NSI Première &nbsp;·&nbsp; TP 01 — Débugger son code Python avec Thonny &nbsp;·&nbsp;
+  PyScript 2026.3.1
+</footer>
+
+<!-- ════════════════════════════════════════════════════════
+     BOUTON RETOUR EN HAUT
+════════════════════════════════════════════════════════ -->
+<button class="btn-haut" id="btn-haut" aria-label="Retour en haut de page" title="Retour en haut">&#8679;</button>
+
+<!-- ════════════════════════════════════════════════════════
+     BOOTSTRAP JS
+════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* ─────────────────────────────────────────────────────────
+   THÈME CLAIR / SOMBRE
+───────────────────────────────────────────────────────── */
+(function() {
+  var btnTheme = document.getElementById('btn-theme');
+  var html = document.documentElement;
+  var estClair = false;
+
+  function appliquerTheme(clair) {
+    estClair = clair;
+    html.setAttribute('data-theme', clair ? 'light' : 'dark');
+    btnTheme.textContent = clair ? '☽ Sombre' : '☀ Clair';
+    try { localStorage.setItem('tp-theme', clair ? 'light' : 'dark'); } catch(e) {}
+  }
+
+  try {
+    var saved = localStorage.getItem('tp-theme');
+    if (saved === 'light') appliquerTheme(true);
+  } catch(e) {}
+
+  btnTheme.addEventListener('click', function() {
+    appliquerTheme(!estClair);
+  });
+})();
+
+/* ─────────────────────────────────────────────────────────
+   BOUTON RETOUR EN HAUT
+───────────────────────────────────────────────────────── */
+(function() {
+  var btnHaut = document.getElementById('btn-haut');
+
+  window.addEventListener('scroll', function() {
+    if (window.scrollY > 400) {
+      btnHaut.classList.add('visible');
+    } else {
+      btnHaut.classList.remove('visible');
+    }
+  }, { passive: true });
+
+  btnHaut.addEventListener('click', function() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+
+/* ─────────────────────────────────────────────────────────
+   NAVIGATION ACTIVE AU SCROLL
+───────────────────────────────────────────────────────── */
+(function() {
+  var liens = document.querySelectorAll('.nav-seances a');
+  var sections = [];
+
+  liens.forEach(function(lien) {
+    var id = lien.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, lien: lien });
+  });
+
+  function mettreAJourNav() {
+    var scrollPos = window.scrollY + 100;
+    var actif = null;
+
+    sections.forEach(function(s) {
+      if (s.el.offsetTop <= scrollPos) {
+        actif = s;
+      }
+    });
+
+    liens.forEach(function(l) { l.classList.remove('active'); });
+    if (actif) actif.lien.classList.add('active');
+  }
+
+  window.addEventListener('scroll', mettreAJourNav, { passive: true });
+  mettreAJourNav();
+})();
+
+/* ─────────────────────────────────────────────────────────
+   TOGGLE BLOCS MASQUABLES
+───────────────────────────────────────────────────────── */
+function toggleBloc(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('visible');
+}
+
+/* ─────────────────────────────────────────────────────────
+   SYSTÈME DE DÉBLOCAGE DES CORRECTIONS
+   ─────────────────────────────────────────────────────────
+   Deux modes :
+   A) Mot de passe enseignant — panneau modal pour toutes corrections
+   B) Minuterie 2 min — déblocage auto pour exercices Thonny/papier
+      (le bouton + la minuterie apparaissent ensemble ; la minuterie
+       prend le relais sans mot de passe une fois écoulée)
+   Persistance : localStorage par identifiant de correction
+───────────────────────────────────────────────────────── */
+(function() {
+
+  var CLE_STORAGE   = 'tp-debug-deblocages-v2';
+  var MOT_DE_PASSE  = 'watteau';          // mot de passe enseignant
+  var DUREE_MINUTERIE = 120;              // secondes (exercices Thonny)
+
+  /* ── Corrections liées à un éditeur PyScript ─────────── */
+  var CORRECTIONS_PYSCRIPT  = [
+    'correction-2','correction-5','correction-7','correction-8',
+    'correction-9','correction-10','correction-11','correction-eval'
+  ];
+
+  /* ── Corrections liées à Thonny/papier ──────────────── */
+  var CORRECTIONS_MINUTERIE = [
+    'correction-1','correction-3','correction-4','correction-6'
+  ];
+
+  /* ── Persistance localStorage ────────────────────────── */
+  function chargerDeblocages() {
+    try { return JSON.parse(localStorage.getItem(CLE_STORAGE) || '{}'); }
+    catch(e) { return {}; }
+  }
+
+  function sauvegarderDeblocage(cid) {
+    try {
+      var d = chargerDeblocages();
+      d[cid] = true;
+      localStorage.setItem(CLE_STORAGE, JSON.stringify(d));
+    } catch(e) {}
+  }
+
+  function sauvegarderTous() {
+    try {
+      var tous = {};
+      CORRECTIONS_PYSCRIPT.concat(CORRECTIONS_MINUTERIE).forEach(function(cid) {
+        tous[cid] = true;
+      });
+      localStorage.setItem(CLE_STORAGE, JSON.stringify(tous));
+    } catch(e) {}
+  }
+
+  /* ── Toast de notification ───────────────────────────── */
+  var toastEl      = document.getElementById('toast-deblocage');
+  var toastMsg     = document.getElementById('toast-message');
+  var toastTimeout = null;
+
+  function afficherToast(message) {
+    if (!toastEl) return;
+    toastMsg.textContent = message;
+    toastEl.classList.add('visible');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(function() { toastEl.classList.remove('visible'); }, 3500);
+  }
+
+  /* ── Activer un bouton correction (sans toast ni persist.) ── */
+  function activerBouton(cid) {
+    var btn = document.getElementById('btn-' + cid);
+    if (!btn || btn.classList.contains('btn-correction-debloque')) return;
+    btn.className  = 'btn-correction-debloque';
+    btn.disabled   = false;
+    btn.innerHTML  = '&#9989; Voir la correction';
+    btn.setAttribute('aria-label', 'Voir la correction');
+    btn.onclick    = function() { toggleBloc(cid); };
+    /* Masquer minuterie si présente */
+    var min = document.getElementById('minuterie-' + cid);
+    if (min) min.style.display = 'none';
+  }
+
+  /* ── Débloquer une correction (avec toast + persist.) ─── */
+  function debloquerCorrection(cid, message) {
+    activerBouton(cid);
+    sauvegarderDeblocage(cid);
+    afficherToast(message || 'Correction débloquée !');
+  }
+
+  /* ── Débloquer TOUTES les corrections ───────────────── */
+  function debloquerTout() {
+    var toutes = CORRECTIONS_PYSCRIPT.concat(CORRECTIONS_MINUTERIE);
+    toutes.forEach(function(cid) { activerBouton(cid); });
+    sauvegarderTous();
+    afficherToast('Toutes les corrections sont débloquées.');
+  }
+
+  /* ══════════════════════════════════════════════════════
+     PANNEAU MOT DE PASSE
+  ══════════════════════════════════════════════════════ */
+  var panneauActuel = null;  /* cid ciblé ou 'TOUT' */
+
+  function creerPanneau(cid) {
+    /* Construit le panneau modal */
+    var estGlobal = (cid === 'TOUT');
+    var label = estGlobal
+      ? 'Débloquer <em>toutes</em> les corrections'
+      : 'Débloquer la correction de l\'exercice <span class="panneau-mdp-cible">' + cid + '</span>';
+
+    var div = document.createElement('div');
+    div.className = 'panneau-mdp';
+    div.id        = 'panneau-mdp-overlay';
+    div.setAttribute('role', 'dialog');
+    div.setAttribute('aria-modal', 'true');
+    div.setAttribute('aria-labelledby', 'panneau-mdp-titre');
+    div.innerHTML =
+      '<div class="panneau-mdp-carte">'
+      + '<div class="panneau-mdp-titre" id="panneau-mdp-titre">&#128274; Accès enseignant</div>'
+      + '<div class="panneau-mdp-sous">' + label + '</div>'
+      + '<input type="password" class="panneau-mdp-input" id="panneau-mdp-saisie" '
+      +   'placeholder="Mot de passe enseignant" autocomplete="off" spellcheck="false" />'
+      + '<div class="panneau-mdp-erreur" id="panneau-mdp-erreur" aria-live="polite"></div>'
+      + '<div class="panneau-mdp-actions">'
+      +   '<button class="btn-secondaire" id="panneau-mdp-annuler">Annuler</button>'
+      +   '<button class="btn-tp-or" id="panneau-mdp-valider">Valider</button>'
+      + '</div>'
+      + '</div>';
+
+    return div;
+  }
+
+  function ouvrirPanneau(cid) {
+    if (document.getElementById('panneau-mdp-overlay')) return; /* déjà ouvert */
+    panneauActuel = cid;
+    var panneau = creerPanneau(cid);
+    document.body.appendChild(panneau);
+
+    var input   = document.getElementById('panneau-mdp-saisie');
+    var erreur  = document.getElementById('panneau-mdp-erreur');
+    var btnVal  = document.getElementById('panneau-mdp-valider');
+    var btnAnn  = document.getElementById('panneau-mdp-annuler');
+
+    /* Focus automatique */
+    setTimeout(function() { if (input) input.focus(); }, 80);
+
+    function fermer() {
+      var el = document.getElementById('panneau-mdp-overlay');
+      if (el) el.remove();
+      panneauActuel = null;
+    }
+
+    function valider() {
+      var saisi = (input.value || '').trim().toLowerCase();
+      if (saisi === MOT_DE_PASSE) {
+        fermer();
+        if (cid === 'TOUT') {
+          debloquerTout();
+        } else {
+          debloquerCorrection(cid, 'Correction débloquée par l\'enseignant.');
+        }
+      } else {
+        erreur.textContent = 'Mot de passe incorrect.';
+        input.classList.add('erreur');
+        input.value = '';
+        setTimeout(function() { input.classList.remove('erreur'); }, 400);
+        setTimeout(function() { if (input) input.focus(); }, 80);
+      }
+    }
+
+    btnVal.addEventListener('click', valider);
+    btnAnn.addEventListener('click', fermer);
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { valider(); }
+      if (e.key === 'Escape') { fermer(); }
+      if (erreur.textContent) erreur.textContent = '';
+    });
+
+    /* Clic sur le fond ferme le panneau */
+    panneau.addEventListener('click', function(e) {
+      if (e.target === panneau) fermer();
+    });
+  }
+
+  /* Attacher le panneau sur tous les boutons verrou */
+  function attacherBoutonsVerrou() {
+    document.querySelectorAll('.btn-correction-verrou').forEach(function(btn) {
+      var id = btn.id; /* "btn-correction-X" */
+      var cid = id.replace('btn-', '');
+      btn.disabled = false;   /* on réactive le clic — le verrou est visuel */
+      btn.addEventListener('click', function() {
+        ouvrirPanneau(cid);
+      });
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════
+     BOUTON DÉBLOCAGE GLOBAL (coin nav)
+  ══════════════════════════════════════════════════════ */
+  function ajouterBoutonGlobal() {
+    var nav = document.querySelector('.nav-controls');
+    if (!nav) return;
+    var btn = document.createElement('button');
+    btn.className   = 'btn-deblocage-global';
+    btn.textContent = '&#128275; Enseignant';
+    btn.title       = 'Débloquer toutes les corrections (enseignant)';
+    btn.innerHTML   = '&#128275; Enseignant';
+    btn.addEventListener('click', function() { ouvrirPanneau('TOUT'); });
+    nav.insertBefore(btn, nav.firstChild);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     MINUTERIES — exercices Thonny/papier
+     (toujours actives en parallèle du mot de passe)
+  ══════════════════════════════════════════════════════ */
+  function lancerMinuterie(cid) {
+    var chronoEl = document.getElementById('chrono-' + cid);
+    if (!chronoEl) return;
+
+    var restant = DUREE_MINUTERIE;
+
+    function mettreAJourChrono() {
+      var min = Math.floor(restant / 60);
+      var sec = restant % 60;
+      chronoEl.textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+
+    mettreAJourChrono();
+
+    var intervalId = setInterval(function() {
+      restant--;
+      if (restant < 0) { clearInterval(intervalId); return; }
+      mettreAJourChrono();
+      if (restant === 0) {
+        clearInterval(intervalId);
+        debloquerCorrection(cid, 'Temps écoulé — correction disponible.');
+      }
+    }, 1000);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     INITIALISATION
+  ══════════════════════════════════════════════════════ */
+  function init() {
+    var deblocages = chargerDeblocages();
+
+    /* Restituer les déblocages persistants (sans toast) */
+    CORRECTIONS_PYSCRIPT.concat(CORRECTIONS_MINUTERIE).forEach(function(cid) {
+      if (deblocages[cid]) activerBouton(cid);
+    });
+
+    /* Attacher le panneau mot de passe sur les boutons encore verrouillés */
+    attacherBoutonsVerrou();
+
+    /* Bouton enseignant global dans la nav */
+    ajouterBoutonGlobal();
+
+    /* Lancer les minuteries pour les exercices Thonny */
+    CORRECTIONS_MINUTERIE.forEach(function(cid) {
+      if (!deblocages[cid]) lancerMinuterie(cid);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+
+</script>
+
+
+<!-- ════════════════════════════════════════════════════════
+     TOAST DÉBLOCAGE
+════════════════════════════════════════════════════════ -->
+<div class="toast-deblocage" id="toast-deblocage" role="alert" aria-live="polite">
+  <span>&#9989;</span>
+  <span id="toast-message">Correction débloquée !</span>
+</div>
+
+</body>
+</html>
